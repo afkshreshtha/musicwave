@@ -1,6 +1,6 @@
 "use client";
+export const dynamic = "force-dynamic";
 import GenreSelector from "@/components/genreselector";
-import MusicPlayer from "@/components/music-player";
 import Navbar from "@/components/navbar";
 import { useGetTracksByGenreQuery } from "@/redux/features/api/musicApi";
 
