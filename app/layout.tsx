@@ -5,7 +5,6 @@ import { ThemeProvider } from "@/components/theme-provider";
 import { Providers } from "@/redux/provider";
 import { MusicPlayerProvider } from "@/providers/music-player-provider";
 
-
 const geistSans = Geist({
   variable: "--font-geist-sans",
   subsets: ["latin"],
@@ -28,25 +27,20 @@ export default function RootLayout({
 }>) {
   return (
     <Providers>
-        <html lang="en" suppressHydrationWarning>
-      <body
-        className={`${geistSans.variable} ${geistMono.variable} antialiased`}
-      >
-        <ThemeProvider
-          attribute="class"
-          defaultTheme="system"
-          enableSystem
-          disableTransitionOnChange
+      <html lang="en" suppressHydrationWarning>
+        <body
+          className={`${geistSans.variable} ${geistMono.variable} antialiased`}
         >
-          <MusicPlayerProvider>
-          {children}
-            
-          </MusicPlayerProvider>
-         
-        </ThemeProvider>
-      </body>
-    </html>  
+          <ThemeProvider
+            attribute="class"
+            defaultTheme="system"
+            enableSystem
+            disableTransitionOnChange
+          >
+            <MusicPlayerProvider>{children}</MusicPlayerProvider>
+          </ThemeProvider>
+        </body>
+      </html>
     </Providers>
-
   );
 }

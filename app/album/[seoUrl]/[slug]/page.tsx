@@ -1,5 +1,11 @@
 "use client";
-import React, { useState, useRef, useEffect, useCallback, useMemo } from "react";
+import React, {
+  useState,
+  useRef,
+  useEffect,
+  useCallback,
+  useMemo,
+} from "react";
 import {
   Play,
   Pause,
@@ -38,7 +44,6 @@ import Image from "next/image";
 import Queue from "@/components/queue";
 import { RootState } from "@/redux/store";
 
-
 export default function AlbumPage() {
   const params = useParams();
   const router = useRouter();
@@ -48,9 +53,7 @@ export default function AlbumPage() {
   const [hasMore, setHasMore] = useState(true);
   const headerRef = useRef(null);
   const observerRef = useRef(null);
-  const dispatch = useDispatch();
-  
-  // Fetch data with current page
+  const dispatch = useDispatch(); // Fetch data with current page
   const {
     data: album,
     isLoading: albumLoading,
@@ -58,24 +61,24 @@ export default function AlbumPage() {
     isError,
   } = useGetAlbumByIdQuery(
     { page: currentPage, id: params.slug },
-    { 
+    {
       refetchOnMountOrArgChange: true,
       skip: !params.slug,
     }
   );
-  
-  const { 
-    isPlaying, 
-    currentSong, 
-    currentSongIndex, 
-    queue, 
+
+  const {
+    isPlaying,
+    currentSong,
+    currentSongIndex,
+    queue,
     showQueue,
     isShuffleOn,
-    repeatMode 
-  } = useSelector((state:RootState) => state.player);
+    repeatMode,
+  } = useSelector((state: RootState) => state.player);
 
-  const totalSongs = searchParams.get('totalSong');
-  console.log(album)
+  const totalSongs = searchParams.get("totalSong");
+  console.log(album);
 
   // Reset pagination when album changes
   useEffect(() => {
@@ -124,9 +127,11 @@ export default function AlbumPage() {
   // Update queue whenever new songs are loaded
   useEffect(() => {
     if (allSongs.length > 0) {
-      const isCurrentAlbum = queue.length > 0 && allSongs.some(song => 
-        queue.some(queueSong => queueSong.id === song.id)
-      );
+      const isCurrentAlbum =
+        queue.length > 0 &&
+        allSongs.some((song) =>
+          queue.some((queueSong) => queueSong.id === song.id)
+        );
 
       if (isCurrentAlbum || queue.length === 0) {
         dispatch(setQueue(allSongs));
@@ -136,17 +141,19 @@ export default function AlbumPage() {
 
   // Check for auto-play on mount
   useEffect(() => {
-    const shouldAutoPlay = searchParams.get('play') === 'true';
+    const shouldAutoPlay = searchParams.get("play") === "true";
     if (shouldAutoPlay && allSongs.length > 0) {
-      console.log('Auto-playing album');
+      console.log("Auto-playing album");
       handlePlayAlbum(true);
-      
+
       const params = new URLSearchParams(searchParams);
-      params.delete('play');
-      
+      params.delete("play");
+
       const queryString = params.toString();
-      const newUrl = queryString ? `${window.location.pathname}?${queryString}` : window.location.pathname;
-      
+      const newUrl = queryString
+        ? `${window.location.pathname}?${queryString}`
+        : window.location.pathname;
+
       router.replace(newUrl, { scroll: false });
     }
   }, [allSongs.length, searchParams]);
@@ -165,12 +172,17 @@ export default function AlbumPage() {
 
   const handlePlayAlbum = (autoPlay = false) => {
     if (allSongs.length > 0) {
-      console.log('handlePlayAlbum called', { autoPlay, songsLength: allSongs.length });
-      dispatch(startPlaylist({ 
-        songs: allSongs, 
-        startIndex: 0, 
-        autoPlay 
-      }));
+      console.log("handlePlayAlbum called", {
+        autoPlay,
+        songsLength: allSongs.length,
+      });
+      dispatch(
+        startPlaylist({
+          songs: allSongs,
+          startIndex: 0,
+          autoPlay,
+        })
+      );
     }
   };
 
@@ -214,9 +226,11 @@ export default function AlbumPage() {
   };
 
   // Check if the current queue is from this album
-  const isCurrentAlbum = queue.length > 0 && allSongs.some(song => 
-    queue.some(queueSong => queueSong.id === song.id)
-  );
+  const isCurrentAlbum =
+    queue.length > 0 &&
+    allSongs.some((song) =>
+      queue.some((queueSong) => queueSong.id === song.id)
+    );
 
   // Simple Loading Component
   const SongLoadingSkeleton = ({ count = 10 }) => {
@@ -259,13 +273,13 @@ export default function AlbumPage() {
         <Navbar />
         <div className="min-h-screen bg-gradient-to-br from-purple-50 to-pink-50 dark:from-gray-900 dark:to-gray-800 text-white relative overflow-hidden">
           <div className="fixed inset-0 bg-gradient-to-br from-purple-900/20 via-pink-900/10 to-blue-900/20 pointer-events-none"></div>
-          
+
           {/* Mobile Loading Header */}
           <div className="flex items-center gap-4 p-4 md:hidden">
             <div className="w-6 h-6 bg-gray-600 rounded animate-pulse"></div>
             <div className="h-6 bg-gray-600 rounded w-32 animate-pulse"></div>
           </div>
-          
+
           <div className="relative pt-4 md:pt-20 pb-8">
             <div className="max-w-7xl mx-auto px-4 md:px-6">
               <div className="flex flex-col items-center md:flex-row md:items-start lg:items-end gap-6 md:gap-8">
@@ -298,8 +312,10 @@ export default function AlbumPage() {
         <Navbar />
         <div className="min-h-screen bg-gradient-to-br from-purple-50 to-pink-50 dark:from-gray-900 dark:to-gray-800 text-white flex items-center justify-center px-4">
           <div className="text-center">
-            <p className="text-lg md:text-xl text-red-400 mb-4">Error loading album</p>
-            <button 
+            <p className="text-lg md:text-xl text-red-400 mb-4">
+              Error loading album
+            </p>
+            <button
               onClick={() => window.location.reload()}
               className="px-6 py-3 bg-purple-600 rounded-lg hover:bg-purple-700 transition-colors"
             >
@@ -314,7 +330,7 @@ export default function AlbumPage() {
   return (
     <>
       <Navbar />
-     
+
       <div className="min-h-screen bg-gradient-to-br from-purple-50 to-pink-50 dark:from-gray-900 dark:to-gray-800 text-white relative overflow-hidden">
         {/* Background Effects */}
         <div className="fixed inset-0 bg-gradient-to-br from-purple-900/20 via-pink-900/10 to-blue-900/20 pointer-events-none"></div>
@@ -418,7 +434,7 @@ export default function AlbumPage() {
               >
                 <List className="w-5 h-5" />
               </button>
-              
+
               <button
                 onClick={() => handlePlayPause()}
                 className="w-12 h-12 bg-gradient-to-r from-purple-600 to-pink-600 rounded-full flex items-center justify-center hover:scale-105 transition-all duration-300 shadow-lg shadow-purple-500/25"
@@ -477,7 +493,12 @@ export default function AlbumPage() {
                     {album?.name}
                   </h1>
                   <p className="text-gray-300 text-sm md:text-lg leading-relaxed max-w-2xl mx-auto md:mx-0">
-                    By  {album?.artists?.all?.map(artist => artist.name).join(', ') || album?.artist || 'Various artist'}
+                    By{" "}
+                    {album?.artists?.all
+                      ?.map((artist) => artist.name)
+                      .join(", ") ||
+                      album?.artist ||
+                      "Various artist"}
                   </p>
                 </div>
 
@@ -485,7 +506,7 @@ export default function AlbumPage() {
                 <div className="flex flex-wrap items-center justify-center md:justify-start gap-4 md:gap-6 text-xs md:text-sm text-gray-400">
                   <div className="flex items-center gap-2">
                     <Calendar className="w-4 h-4" />
-                    <span>{album?.year || 'Unknown Year'}</span>
+                    <span>{album?.year || "Unknown Year"}</span>
                   </div>
                   <div className="flex items-center gap-2">
                     <Clock className="w-4 h-4" />
@@ -498,7 +519,6 @@ export default function AlbumPage() {
                       )}
                     </span>
                   </div>
-
                 </div>
 
                 {/* Action Buttons */}
@@ -545,9 +565,11 @@ export default function AlbumPage() {
         {/* Songs List */}
         <div className="max-w-7xl mx-auto px-4 md:px-6 pb-32">
           {/* List Header */}
-          <div className={`sticky bg-gradient-to-b from-black/90 to-black/60 backdrop-blur-xl -mx-4 md:-mx-6 px-4 md:px-6 py-3 md:py-4 mb-3 md:mb-4 border-b border-white/10 z-40 ${
-            scrolled ? 'top-16 md:top-32' : 'top-16 md:top-32'
-          }`}>
+          <div
+            className={`sticky bg-gradient-to-b from-black/90 to-black/60 backdrop-blur-xl -mx-4 md:-mx-6 px-4 md:px-6 py-3 md:py-4 mb-3 md:mb-4 border-b border-white/10 z-40 ${
+              scrolled ? "top-16 md:top-32" : "top-16 md:top-32"
+            }`}
+          >
             <div className="flex items-center justify-between mb-3 md:mb-4">
               <h2 className="text-xl md:text-2xl font-bold">
                 Songs ({allSongs.length}
@@ -673,14 +695,22 @@ export default function AlbumPage() {
                         {song.name}
                       </h3>
                       <p className="text-xs text-gray-400 truncate">
-                        {song.artists?.primary?.map(artist => artist.name).join(', ') || album?.artist || 'Various artist'}
+                        {song.artists?.primary
+                          ?.map((artist) => artist.name)
+                          .join(", ") ||
+                          album?.artist ||
+                          "Various artist"}
                       </p>
                     </div>
 
                     {/* Duration & Actions */}
                     <div className="flex items-center gap-2">
                       <span className="text-xs text-gray-400">
-                        {song.duration ? Math.floor(song.duration / 60) + ':' + String(song.duration % 60).padStart(2, '0') : '--:--'}
+                        {song.duration
+                          ? Math.floor(song.duration / 60) +
+                            ":" +
+                            String(song.duration % 60).padStart(2, "0")
+                          : "--:--"}
                       </span>
                       <button
                         onClick={() => handleLike(song.id)}
@@ -737,11 +767,17 @@ export default function AlbumPage() {
                               ></div>
                               <div
                                 className="w-1 bg-purple-400 rounded-full animate-pulse"
-                                style={{ height: "80%", animationDelay: "150ms" }}
+                                style={{
+                                  height: "80%",
+                                  animationDelay: "150ms",
+                                }}
                               ></div>
                               <div
                                 className="w-1 bg-purple-400 rounded-full animate-pulse"
-                                style={{ height: "40%", animationDelay: "300ms" }}
+                                style={{
+                                  height: "40%",
+                                  animationDelay: "300ms",
+                                }}
                               ></div>
                             </div>
                           </div>
@@ -758,19 +794,31 @@ export default function AlbumPage() {
                           {song.name}
                         </h3>
                         <p className="text-sm text-gray-400">
-                          {song.artists?.primary?.map(artist => artist.name).join(', ') || album?.artist || 'Various artist'}
+                          {song.artists?.primary
+                            ?.map((artist) => artist.name)
+                            .join(", ") ||
+                            album?.artist ||
+                            "Various artist"}
                         </p>
                       </div>
                     </div>
 
                     {/* Artist */}
                     <div className="col-span-3 text-sm text-gray-400">
-                      {song?.artists?.all?.map(artist => artist.name).join(', ') || album?.artist || 'Various artist'}
+                      {song?.artists?.all
+                        ?.map((artist) => artist.name)
+                        .join(", ") ||
+                        album?.artist ||
+                        "Various artist"}
                     </div>
 
                     {/* Duration */}
                     <div className="col-span-1 text-sm text-gray-400">
-                      {song.duration ? Math.floor(song.duration / 60) + ':' + String(song.duration % 60).padStart(2, '0') : '--:--'}
+                      {song.duration
+                        ? Math.floor(song.duration / 60) +
+                          ":" +
+                          String(song.duration % 60).padStart(2, "0")
+                        : "--:--"}
                     </div>
 
                     {/* Actions */}
@@ -789,7 +837,7 @@ export default function AlbumPage() {
                 </div>
               );
             })}
-            
+
             {/* Show infinite loading indicator */}
             {isFetching && currentPage > 1 && hasMore && (
               <InfiniteLoadingIndicator />
@@ -807,15 +855,16 @@ export default function AlbumPage() {
         </div>
 
         {/* Queue Overlay (Mobile & Desktop) - Same as playlist */}
-          <Queue
-        isVisible={showQueue}
-        onClose={() => dispatch(setShowQueue(false))}
-        showNowPlaying={true}
-        allowPlayFromQueue={true}
-        allowRemoveFromQueue={true}
-      />
+        <Queue
+          isVisible={showQueue}
+          onClose={() => dispatch(setShowQueue(false))}
+          showNowPlaying={true}
+          allowPlayFromQueue={true}
+          allowRemoveFromQueue={true}
+        />
       </div>
-   
     </>
   );
 }
+
+export const dynamic = "force-dynamic";
