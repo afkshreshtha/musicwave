@@ -1,8 +1,7 @@
-import { Input } from "@/components/ui/input";
+
 import { ModeToggle } from "@/components/mode-toogle";
-import Image from "next/image";
 import Link from "next/link";
-import { Heart, User, Search, Waves } from "lucide-react";
+import { Heart, User,  Waves } from "lucide-react";
 import SearchBar from "./search-br";
 
 export default function Navbar() {

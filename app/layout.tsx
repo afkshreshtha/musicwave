@@ -4,7 +4,7 @@ import "./globals.css";
 import { ThemeProvider } from "@/components/theme-provider";
 import { Providers } from "@/redux/provider";
 import { MusicPlayerProvider } from "@/providers/music-player-provider";
-import { Suspense } from "react";
+
 
 const geistSans = Geist({
   variable: "--font-geist-sans",

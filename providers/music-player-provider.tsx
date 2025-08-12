@@ -2,7 +2,7 @@
 
 import React, { createContext, useContext, useEffect, useRef } from 'react';
 import { useSelector, useDispatch } from 'react-redux';
-import { useSearchParams } from 'next/navigation';
+import { useParams } from 'next/navigation';
 import MusicPlayer from '@/components/music-player';
 import {
   setCurrentTime,
@@ -14,6 +14,7 @@ import {
   setQueue,
   startPlaylist,
 } from '@/redux/features/musicPlayerSlice';
+import { RootState } from '@/redux/store';
 
 // Create context for audio ref if needed elsewhere
 const MusicPlayerContext = createContext(null);
@@ -33,7 +34,8 @@ export function MusicPlayerProvider({
 }>) {
   const audioRef = useRef(null);
   const dispatch = useDispatch();
-  const searchParams = useSearchParams();
+
+  const params = useParams()
   
   const {
     currentSong,
@@ -42,15 +44,15 @@ export function MusicPlayerProvider({
     duration,
     volume,
     repeatMode,
-  } = useSelector((state) => state.player);
+  } = useSelector((state:RootState) => state.player);
 
   // Check for auto-play URL parameter
   useEffect(() => {
-    const shouldAutoPlay = searchParams.get('play') === 'true';
+    const shouldAutoPlay = params.autoPlay === 'true';
     if (shouldAutoPlay && currentSong && !isPlaying) {
       dispatch(playPause());
     }
-  }, [searchParams, currentSong, isPlaying, dispatch]);
+  }, [params.autoPlay, currentSong, isPlaying, dispatch]);
 
   // Persistent audio management
   useEffect(() => {
