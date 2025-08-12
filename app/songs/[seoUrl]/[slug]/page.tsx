@@ -45,6 +45,7 @@ import {
 } from "@/redux/features/musicPlayerSlice";
 import Image from "next/image";
 import Queue from "@/components/queue";
+import { RootState } from "@/redux/store";
 
 const PlaylistDetailsPage = () => {
   const params = useParams();
@@ -72,7 +73,7 @@ const PlaylistDetailsPage = () => {
   );
 
   const { isPlaying, currentSong, queue, showQueue, isShuffleOn, repeatMode } =
-    useSelector((state) => state.player);
+    useSelector((state:RootState) => state.player);
 
   const totalSongs = searchParams.get("totalSong");
   const {

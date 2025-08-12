@@ -44,6 +44,7 @@ import Image from "next/image";
 import usePlaylist from "@/hooks/usePlaylist";
 import useQueue from "@/hooks/useQueue";
 import Queue from "@/components/queue";
+import { RootState } from "@/redux/store";
 
 const SongDetails = () => {
   const { slug, songcount } = useParams();
@@ -76,7 +77,7 @@ const SongDetails = () => {
     queue,
     isShuffleOn,
     repeatMode,
-  } = useSelector((state) => state.player);
+  } = useSelector((state:RootState) => state.player);
 
   // Utility function to decode HTML strings
   const decodeHTMLString = (str) => {

@@ -48,6 +48,7 @@ import Image from "next/image";
 import SortDropdown from "@/components/sort-dropdown";
 import useQueue from "@/hooks/useQueue";
 import Queue from "@/components/queue";
+import { RootState } from "@/redux/store";
 
 const ArtistDetailPage = () => {
   const { slug } = useParams();
@@ -128,7 +129,7 @@ const ArtistDetailPage = () => {
   console.log("Artist data:", artist);
 
   const { isPlaying, currentSong, queue } = useSelector(
-    (state) => state.player
+    (state:RootState) => state.player
   );
   useEffect(() => {
     setSongCurrentPage(1);

@@ -29,6 +29,7 @@ import Navbar from "@/components/navbar";
 import MusicPlayer from "@/components/music-player";
 import Image from "next/image";
 import Link from "next/link";
+import { RootState } from "@/redux/store";
 
 const SongDetailPage = () => {
   const { slug } = useParams();
@@ -53,7 +54,7 @@ const SongDetailPage = () => {
   const song = songData?.data || {};
   console.log(song);
 
-  const { isPlaying, currentSong } = useSelector((state) => state.player);
+  const { isPlaying, currentSong } = useSelector((state:RootState) => state.player);
 
   // Utility function to decode HTML strings
   const decodeHTMLString = (str) => {

@@ -36,6 +36,8 @@ import Navbar from "@/components/navbar";
 import MusicPlayer from "@/components/music-player";
 import Image from "next/image";
 import Queue from "@/components/queue";
+import { RootState } from "@/redux/store";
+
 
 export default function AlbumPage() {
   const params = useParams();
@@ -70,7 +72,7 @@ export default function AlbumPage() {
     showQueue,
     isShuffleOn,
     repeatMode 
-  } = useSelector((state) => state.player);
+  } = useSelector((state:RootState) => state.player);
 
   const totalSongs = searchParams.get('totalSong');
   console.log(album)
