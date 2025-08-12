@@ -864,7 +864,7 @@ const { showQueue, toggleQueueVisibility } = useQueue()
           {!hasMore && allSongs.length > 0 && (
             <div className="text-center py-8 md:py-12">
               <div className="text-gray-400 text-sm md:text-base">
-                🎵 You've reached the end of the playlist!
+                🎵 You&apos;ve reached the end of the playlist!
               </div>
             </div>
           )}

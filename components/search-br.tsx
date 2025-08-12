@@ -566,7 +566,7 @@ console.log(processedResults)
                   ) : query.length >= 2 ? (
                     <div className="p-6 sm:p-8 text-gray-500 dark:text-gray-400 text-center text-base sm:text-lg animate-fade-up">
                       <div className="mb-2">🎵</div>
-                      No results found for "{query}"
+                      No results found for &ldquo;{query}&rdquo;
                     </div>
                   ) : null}
                 </div>

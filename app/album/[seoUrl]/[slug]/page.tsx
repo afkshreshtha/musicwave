@@ -798,7 +798,7 @@ export default function AlbumPage() {
           {!hasMore && allSongs.length > 0 && (
             <div className="text-center py-8 md:py-12">
               <div className="text-gray-400 text-sm md:text-base">
-                🎵 You've reached the end of the album!
+                🎵 You&apos;ve reached the end of the album!
               </div>
             </div>
           )}

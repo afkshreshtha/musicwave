@@ -406,7 +406,7 @@ export default function Home() {
           {!hasMore && playlists?.results?.length > 0 && (
             <div className="text-center py-8 sm:py-12">
               <div className="text-gray-500 dark:text-gray-400 text-sm sm:text-base">
-                🎵 You've reached the end of {selectedGenre} tracks!
+                🎵 You&apos;ve reached the end of {selectedGenre} tracks!
               </div>
             </div>
           )}

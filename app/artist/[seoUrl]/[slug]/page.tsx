@@ -540,6 +540,7 @@ const ArtistDetailPage = () => {
               </button>
               <Queue
                 isVisible={showQueue}
+                onClose={``}
                 showNowPlaying={true}
                 allowPlayFromQueue={true}
                 allowRemoveFromQueue={false} // Don't allow removing from queue in album view
@@ -999,8 +1000,8 @@ const ArtistDetailPage = () => {
                       <div className="text-center py-8 text-gray-400">
                         <Music className="w-12 h-12 mx-auto mb-2 opacity-50" />
                         <p>
-                          You've reached the end of{" "}
-                          {decodeHTMLString(artist.name)}'s songs!
+                          You&apos;ve reached the end of{" "}
+                          {decodeHTMLString(artist.name)}&apos;s songs!
                         </p>
                       </div>
                     )}
@@ -1105,8 +1106,8 @@ const ArtistDetailPage = () => {
                       <div className="text-center py-8 text-gray-400">
                         <Disc className="w-12 h-12 mx-auto mb-2 opacity-50" />
                         <p>
-                          You've reached the end of{" "}
-                          {decodeHTMLString(artist.name)}'s albums!
+                          You&apos;ve reached the end of{" "}
+                          {decodeHTMLString(artist.name)}&apos;s albums!
                         </p>
                       </div>
                     )}
