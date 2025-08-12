@@ -25,10 +25,9 @@ import {
   Loader,
   ArrowLeft,
 } from "lucide-react";
-import { useParams, useRouter, useSearchParams } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
 import {
   useGetArtistAlbumsByIdQuery,
-  useGetArtistSongsByIdQuery,
   useGetTracksByIdQuery,
 } from "@/redux/features/api/musicApi";
 import { useDispatch, useSelector } from "react-redux";
@@ -50,7 +49,6 @@ import { RootState } from "@/redux/store";
 const PlaylistDetailsPage = () => {
   const params = useParams();
   const router = useRouter();
-  const searchParams = useSearchParams();
   const [scrolled, setScrolled] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
   const [hasMore, setHasMore] = useState(true);
@@ -73,9 +71,9 @@ const PlaylistDetailsPage = () => {
   );
 
   const { isPlaying, currentSong, queue, showQueue, isShuffleOn, repeatMode } =
-    useSelector((state:RootState) => state.player);
+    useSelector((state: RootState) => state.player);
 
-  const totalSongs = searchParams.get("totalSong");
+  const totalSongs = params.totalSongs;
   const {
     data: songsData,
     isLoading: songsLoading,
@@ -146,22 +144,12 @@ const PlaylistDetailsPage = () => {
 
   // Check for auto-play on mount
   useEffect(() => {
-    const shouldAutoPlay = searchParams.get("play") === "true";
+    const shouldAutoPlay = params.autoPlay === "true";
     if (shouldAutoPlay && allSongs.length > 0) {
       console.log("Auto-playing playlist");
       handlePlayPlaylist(true);
-
-      const params = new URLSearchParams(searchParams);
-      params.delete("play");
-
-      const queryString = params.toString();
-      const newUrl = queryString
-        ? `${window.location.pathname}?${queryString}`
-        : window.location.pathname;
-
-      router.replace(newUrl, { scroll: false });
     }
-  }, [allSongs.length, searchParams]);
+  }, [allSongs.length, params.autoPlay]);
 
   useEffect(() => {
     const handleScroll = () => {

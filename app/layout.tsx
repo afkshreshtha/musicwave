@@ -39,7 +39,7 @@ export default function RootLayout({
             disableTransitionOnChange
           >
             <MusicPlayerProvider>
-              <Suspense fallback={null}>{children}</Suspense>
+             {children}
             </MusicPlayerProvider>
           </ThemeProvider>
         </body>

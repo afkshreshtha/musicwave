@@ -1,5 +1,4 @@
 "use client";
-export const dynamic = "force-dynamic";
 import React, { useState, useRef, useEffect } from "react";
 import {
   Play,
@@ -21,7 +20,7 @@ import {
   Plus,
   Check,
 } from "lucide-react";
-import { useParams, useRouter, useSearchParams } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
 import { useDispatch, useSelector } from "react-redux";
 import { playPause, playSong } from "@/redux/features/musicPlayerSlice";
 import { useGetSongByIdQuery } from "@/redux/features/api/musicApi";
@@ -32,9 +31,9 @@ import Link from "next/link";
 import { RootState } from "@/redux/store";
 
 const SongDetailPage = () => {
-  const { slug } = useParams();
+  const { slug,autoPlay } = useParams();
   const router = useRouter();
-  const searchParams = useSearchParams();
+ 
   const [scrolled, setScrolled] = useState(false);
   const [showLyrics, setShowLyrics] = useState(false);
   const [isLiked, setIsLiked] = useState(false);
@@ -97,21 +96,12 @@ const SongDetailPage = () => {
 
   // Check for auto-play on mount
   useEffect(() => {
-    const shouldAutoPlay = searchParams.get("play") === "true";
+    const shouldAutoPlay =  autoPlay=== "true";
     if (shouldAutoPlay && song.id) {
       handlePlaySong(true);
 
-      const params = new URLSearchParams(searchParams);
-      params.delete("play");
-
-      const queryString = params.toString();
-      const newUrl = queryString
-        ? `${window.location.pathname}?${queryString}`
-        : window.location.pathname;
-
-      router.replace(newUrl, { scroll: false });
     }
-  }, [song.id, searchParams, router]);
+  }, [song.id,  autoPlay]);
 
   const handlePlaySong = (autoPlay = false) => {
     if (song.id) {

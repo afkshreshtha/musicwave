@@ -1,5 +1,4 @@
 "use client";
-export const dynamic = "force-dynamic";
 import React, {
   useState,
   useRef,
@@ -29,7 +28,7 @@ import {
   Loader,
   List,
 } from "lucide-react";
-import { useParams, useRouter, useSearchParams } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
 import { useDispatch, useSelector } from "react-redux";
 import {
   playPause,
@@ -51,9 +50,8 @@ import Queue from "@/components/queue";
 import { RootState } from "@/redux/store";
 
 const ArtistDetailPage = () => {
-  const { slug } = useParams();
+  const { slug,autoPlay } = useParams();
   const router = useRouter();
-  const searchParams = useSearchParams();
   const [scrolled, setScrolled] = useState(false);
   const [isFollowing, setIsFollowing] = useState(false);
   const [activeTab, setActiveTab] = useState("overview");
@@ -257,21 +255,12 @@ const ArtistDetailPage = () => {
   }, []);
 
   useEffect(() => {
-    const shouldAutoPlay = searchParams.get("play") === "true";
+    const shouldAutoPlay = autoPlay === "true";
     if (shouldAutoPlay && songs?.songs?.length > 0) {
       handlePlayArtistSongs(true);
 
-      const params = new URLSearchParams(searchParams);
-      params.delete("play");
-
-      const queryString = params.toString();
-      const newUrl = queryString
-        ? `${window.location.pathname}?${queryString}`
-        : window.location.pathname;
-
-      router.replace(newUrl, { scroll: false });
     }
-  }, [songs?.length, searchParams, router]);
+  }, [songs?.length, autoPlay]);
 
   // Your existing handler functions...
   const handlePlayArtistSongs = (autoPlay = false) => {

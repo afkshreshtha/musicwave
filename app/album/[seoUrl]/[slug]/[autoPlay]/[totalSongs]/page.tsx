@@ -1,5 +1,4 @@
 "use client";
-export const dynamic = "force-dynamic";
 import React, {
   useState,
   useRef,
@@ -25,8 +24,8 @@ import {
   Loader,
   ArrowLeft,
 } from "lucide-react";
-import { useParams, useRouter, useSearchParams } from "next/navigation";
-import { useGetPlaylistByIdQuery } from "@/redux/features/api/musicApi";
+import { useParams, useRouter } from "next/navigation";
+import { useGetAlbumByIdQuery } from "@/redux/features/api/musicApi";
 import { useDispatch, useSelector } from "react-redux";
 import {
   playPause,
@@ -40,111 +39,114 @@ import {
   startPlaylist,
 } from "@/redux/features/musicPlayerSlice";
 import Navbar from "@/components/navbar";
+import MusicPlayer from "@/components/music-player";
 import Image from "next/image";
-import usePlaylist from "@/hooks/usePlaylist";
-import useQueue from "@/hooks/useQueue";
 import Queue from "@/components/queue";
 import { RootState } from "@/redux/store";
 
-const SongDetails = () => {
-  const { slug, songcount } = useParams();
+export default function AlbumPage() {
+  const params = useParams();
   const router = useRouter();
-  const searchParams = useSearchParams();
   const [scrolled, setScrolled] = useState(false);
-  const [page, setPage] = useState(1);
-
+  const [currentPage, setCurrentPage] = useState(1);
+  const [hasMore, setHasMore] = useState(true);
   const headerRef = useRef(null);
-  const dispatch = useDispatch();
-  const id = slug;
-
-  // Fixed: Added proper query structure and error handling
-  const { songs, hasMore, loading, error } = usePlaylist(id, page);
-  console.log(slug);
-  // Get playlist data using RTK Query
+  const observerRef = useRef(null);
+  const dispatch = useDispatch(); // Fetch data with current page
   const {
-    data: playlistData,
-    isLoading: playlistLoading,
-    error: playlistError,
-  } = useGetPlaylistByIdQuery({ id });
-
-  // Extract playlist info from the data
-  const playlist = playlistData?.data || {};
+    data: album,
+    isLoading: albumLoading,
+    isFetching,
+    isError,
+  } = useGetAlbumByIdQuery(
+    { page: currentPage, id: params.slug },
+    {
+      refetchOnMountOrArgChange: true,
+      skip: !params.slug,
+    }
+  );
 
   const {
     isPlaying,
     currentSong,
     currentSongIndex,
     queue,
+    showQueue,
     isShuffleOn,
     repeatMode,
-  } = useSelector((state:RootState) => state.player);
+  } = useSelector((state: RootState) => state.player);
 
-  // Utility function to decode HTML strings
-  const decodeHTMLString = (str) => {
-    const decodedString = str?.replace(/&quot;/g, '"');
-    return decodedString;
-  };
-const { showQueue, toggleQueueVisibility } = useQueue()
-  // Fixed: Renamed lastBookElementRef to lastElementRef for consistency
-  const observer = useRef();
+  const totalSongs = params.totalSongs;
+
+
+  // Reset pagination when album changes
+  useEffect(() => {
+    setCurrentPage(1);
+    setHasMore(true);
+  }, [params.slug]);
+
+  // Check if we have more pages to load
+  useEffect(() => {
+    if (album) {
+      const currentResults = album.songs?.length || 0;
+      const total = totalSongs || album.trackCount || 0;
+      setHasMore(currentResults < total && currentResults >= 10);
+    }
+  }, [album, totalSongs]);
+
+  // Intersection Observer for infinite scroll
   const lastElementRef = useCallback(
     (node) => {
-      if (loading) return;
+      if (albumLoading || isFetching) return;
 
-      if (observer.current) observer.current.disconnect();
-      observer.current = new IntersectionObserver((entries) => {
-        if (entries[0].isIntersecting && hasMore) {
-          setPage((prevPage) => prevPage + 1);
+      if (observerRef.current) observerRef.current.disconnect();
+
+      observerRef.current = new IntersectionObserver(
+        (entries) => {
+          if (entries[0].isIntersecting && hasMore && !isFetching) {
+            setCurrentPage((prevPage) => prevPage + 1);
+          }
+        },
+        {
+          threshold: 0.1,
+          rootMargin: "100px",
         }
-      });
-      if (node) observer.current.observe(node);
+      );
+
+      if (node) observerRef.current.observe(node);
     },
-    [loading, hasMore]
+    [albumLoading, isFetching, hasMore]
   );
 
   // Memoize all songs for better performance
   const allSongs = useMemo(() => {
-    return songs || [];
-  }, [songs]);
-
-  // Decode playlist name
-  const playlistName = useMemo(() => {
-    return decodeHTMLString(playlist?.name) || "Unknown Playlist";
-  }, [playlist?.name]);
+    return album?.songs || [];
+  }, [album?.songs]);
 
   // Update queue whenever new songs are loaded
   useEffect(() => {
     if (allSongs.length > 0) {
-      const isCurrentPlaylist =
+      const isCurrentAlbum =
         queue.length > 0 &&
         allSongs.some((song) =>
           queue.some((queueSong) => queueSong.id === song.id)
         );
 
-      if (isCurrentPlaylist || queue.length === 0) {
+      if (isCurrentAlbum || queue.length === 0) {
         dispatch(setQueue(allSongs));
       }
     }
-  }, [allSongs, dispatch, queue.length]);
+  }, [allSongs, dispatch]);
 
   // Check for auto-play on mount
   useEffect(() => {
-    const shouldAutoPlay = searchParams.get("play") === "true";
+    const shouldAutoPlay = params.autoPlay === "true";
     if (shouldAutoPlay && allSongs.length > 0) {
-      console.log("Auto-playing playlist");
-      handlePlayPlaylist(true);
+      console.log("Auto-playing album");
+      handlePlayAlbum(true);
 
-      const params = new URLSearchParams(searchParams);
-      params.delete("play");
-
-      const queryString = params.toString();
-      const newUrl = queryString
-        ? `${window.location.pathname}?${queryString}`
-        : window.location.pathname;
-
-      router.replace(newUrl, { scroll: false });
     }
-  }, [allSongs.length, searchParams, router]);
+  }, [allSongs.length, params.autoPlay]);
 
   useEffect(() => {
     const handleScroll = () => {
@@ -158,10 +160,9 @@ const { showQueue, toggleQueueVisibility } = useQueue()
     return () => window.removeEventListener("scroll", handleScroll);
   }, []);
 
-  // Fixed: Renamed function to match convention
-  const handlePlayPlaylist = (autoPlay = false) => {
+  const handlePlayAlbum = (autoPlay = false) => {
     if (allSongs.length > 0) {
-      console.log("handlePlayPlaylist called", {
+      console.log("handlePlayAlbum called", {
         autoPlay,
         songsLength: allSongs.length,
       });
@@ -188,7 +189,7 @@ const { showQueue, toggleQueueVisibility } = useQueue()
       }
     } else {
       if (!currentSong && allSongs.length > 0) {
-        handlePlayPlaylist(true);
+        handlePlayAlbum(true);
       } else {
         dispatch(playPause());
       }
@@ -197,7 +198,6 @@ const { showQueue, toggleQueueVisibility } = useQueue()
 
   const handleLike = (songId) => {
     // Implement like functionality
-    console.log("Liked song:", songId);
   };
 
   const handleRemoveFromQueue = (songId) => {
@@ -207,24 +207,6 @@ const { showQueue, toggleQueueVisibility } = useQueue()
   const handleShuffleToggle = () => {
     dispatch(toggleShuffle());
   };
-  // Add this new function in your component
-  const handlePlayFromQueue = (song, queueIndex) => {
-    // Find the actual index in the queue array
-    const actualQueueIndex = currentSongIndex + 1 + queueIndex;
-
-    // Dispatch to play the selected song and update the current song index
-    dispatch(playSong(song));
-
-    // You might need to add a new action to set the current song index
-    // dispatch(setCurrentSongIndex(actualQueueIndex));
-
-    console.log(
-      "Playing from queue:",
-      song.name,
-      "at index:",
-      actualQueueIndex
-    );
-  };
 
   const handleRepeatToggle = () => {
     const modes = ["off", "all", "one"];
@@ -233,8 +215,8 @@ const { showQueue, toggleQueueVisibility } = useQueue()
     dispatch(setRepeatMode(nextMode));
   };
 
-  // Check if the current queue is from this playlist
-  const isCurrentPlaylist =
+  // Check if the current queue is from this album
+  const isCurrentAlbum =
     queue.length > 0 &&
     allSongs.some((song) =>
       queue.some((queueSong) => queueSong.id === song.id)
@@ -275,7 +257,7 @@ const { showQueue, toggleQueueVisibility } = useQueue()
   };
 
   // Show initial loading for first page
-  if ((loading && page === 1) || playlistLoading) {
+  if (albumLoading && currentPage === 1) {
     return (
       <>
         <Navbar />
@@ -314,15 +296,14 @@ const { showQueue, toggleQueueVisibility } = useQueue()
     );
   }
 
-  // Fixed: Changed Error to error (lowercase)
-  if (error || playlistError) {
+  if (isError) {
     return (
       <>
         <Navbar />
         <div className="min-h-screen bg-gradient-to-br from-purple-50 to-pink-50 dark:from-gray-900 dark:to-gray-800 text-white flex items-center justify-center px-4">
           <div className="text-center">
             <p className="text-lg md:text-xl text-red-400 mb-4">
-              Error loading playlist
+              Error loading album
             </p>
             <button
               onClick={() => window.location.reload()}
@@ -339,6 +320,7 @@ const { showQueue, toggleQueueVisibility } = useQueue()
   return (
     <>
       <Navbar />
+
       <div className="min-h-screen bg-gradient-to-br from-purple-50 to-pink-50 dark:from-gray-900 dark:to-gray-800 text-white relative overflow-hidden">
         {/* Background Effects */}
         <div className="fixed inset-0 bg-gradient-to-br from-purple-900/20 via-pink-900/10 to-blue-900/20 pointer-events-none"></div>
@@ -356,19 +338,17 @@ const { showQueue, toggleQueueVisibility } = useQueue()
               <>
                 <div className="w-8 h-8 rounded overflow-hidden">
                   <Image
-                    src={
-                      playlist?.image?.[2]?.url || "/placeholder-playlist.jpg"
-                    }
-                    alt={playlistName}
+                    src={album?.image?.[2]?.url || "/placeholder-album.jpg"}
+                    alt={album?.name}
                     width={32}
                     height={32}
                     className="w-full h-full object-cover"
                   />
                 </div>
                 <div className="flex-1 min-w-0">
-                  <h1 className="font-semibold truncate">{playlistName}</h1>
+                  <h1 className="font-semibold truncate">{album?.name}</h1>
                   <p className="text-xs text-gray-400">
-                    {songcount || allSongs.length} songs
+                    {allSongs.length} songs
                   </p>
                 </div>
               </>
@@ -388,7 +368,7 @@ const { showQueue, toggleQueueVisibility } = useQueue()
                 onClick={() => handlePlayPause()}
                 className="w-10 h-10 bg-gradient-to-r from-purple-600 to-pink-600 rounded-full flex items-center justify-center hover:scale-105 transition-all duration-300"
               >
-                {isPlaying && isCurrentPlaylist ? (
+                {isPlaying && isCurrentAlbum ? (
                   <Pause className="w-4 h-4 text-white" />
                 ) : (
                   <Play className="w-4 h-4 text-white ml-0.5" />
@@ -403,7 +383,7 @@ const { showQueue, toggleQueueVisibility } = useQueue()
           ref={headerRef}
           className={`hidden md:block fixed top-0 left-0 right-0 z-50 transition-all duration-500 ${
             scrolled
-              ? "bg-black/90 backdrop-blur-xl  border-b border-white/10 py-3"
+              ? "bg-black/90 backdrop-blur-xl border-b border-white/10 py-3"
               : "bg-transparent py-6 top-20"
           }`}
         >
@@ -412,20 +392,18 @@ const { showQueue, toggleQueueVisibility } = useQueue()
               <>
                 <div className="w-12 h-12 rounded-lg overflow-hidden ring-2 ring-purple-500/30">
                   <Image
-                    src={
-                      playlist?.image?.[2]?.url || "/placeholder-playlist.jpg"
-                    }
-                    alt={playlistName}
+                    src={album?.image?.[2]?.url || "/placeholder-album.jpg"}
+                    alt={album?.name}
                     width={48}
                     height={48}
                     className="w-full h-full object-cover"
                   />
                 </div>
                 <div>
-                  <h1 className="text-xl font-bold">{playlistName}</h1>
+                  <h1 className="text-xl font-bold">{album?.name}</h1>
                   <p className="text-sm text-gray-400">
-                    {songcount || allSongs.length} songs
-                    {loading && page > 1 && (
+                    {allSongs.length} songs
+                    {isFetching && currentPage > 1 && (
                       <span className="ml-1 text-purple-400">
                         • Loading more...
                       </span>
@@ -451,7 +429,7 @@ const { showQueue, toggleQueueVisibility } = useQueue()
                 onClick={() => handlePlayPause()}
                 className="w-12 h-12 bg-gradient-to-r from-purple-600 to-pink-600 rounded-full flex items-center justify-center hover:scale-105 transition-all duration-300 shadow-lg shadow-purple-500/25"
               >
-                {isPlaying && isCurrentPlaylist ? (
+                {isPlaying && isCurrentAlbum ? (
                   <Pause className="w-5 h-5 text-white" />
                 ) : (
                   <Play className="w-5 h-5 text-white ml-0.5" />
@@ -472,10 +450,8 @@ const { showQueue, toggleQueueVisibility } = useQueue()
 
                   <div className="relative w-full h-full">
                     <Image
-                      src={
-                        playlist?.image?.[2]?.url || "/placeholder-playlist.jpg"
-                      }
-                      alt={playlistName}
+                      src={album?.image?.[2]?.url || "/placeholder-album.jpg"}
+                      alt={album?.name}
                       width={320}
                       height={320}
                       className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
@@ -486,7 +462,7 @@ const { showQueue, toggleQueueVisibility } = useQueue()
                         onClick={() => handlePlayPause()}
                         className="w-16 h-16 md:w-20 md:h-20 bg-white/20 backdrop-blur-sm rounded-full flex items-center justify-center hover:bg-white/30 transition-colors duration-300"
                       >
-                        {isPlaying && isCurrentPlaylist ? (
+                        {isPlaying && isCurrentAlbum ? (
                           <Pause className="w-6 h-6 md:w-8 md:h-8 text-white" />
                         ) : (
                           <Play className="w-6 h-6 md:w-8 md:h-8 text-white ml-1" />
@@ -497,23 +473,22 @@ const { showQueue, toggleQueueVisibility } = useQueue()
                 </div>
               </div>
 
-              {/* Playlist Info */}
+              {/* Album Info */}
               <div className="flex-1 space-y-4 md:space-y-6 text-center md:text-left">
                 <div>
                   <p className="text-xs md:text-sm font-semibold text-purple-400 uppercase tracking-wider mb-2">
-                    Playlist
+                    Album
                   </p>
                   <h1 className="text-3xl md:text-4xl lg:text-6xl font-black mb-3 md:mb-4 bg-gradient-to-r from-white via-purple-200 to-pink-200 bg-clip-text text-transparent">
-                    {playlistName}
+                    {album?.name}
                   </h1>
                   <p className="text-gray-300 text-sm md:text-lg leading-relaxed max-w-2xl mx-auto md:mx-0">
                     By{" "}
-                    {playlist?.artists?.length > 0
-                      ? playlist.artists
-                          .slice(0, 3)
-                          .map((artist) => artist.name)
-                          .join(", ")
-                      : "Various Artists"}
+                    {album?.artists?.all
+                      ?.map((artist) => artist.name)
+                      .join(", ") ||
+                      album?.artist ||
+                      "Various artist"}
                   </p>
                 </div>
 
@@ -521,12 +496,12 @@ const { showQueue, toggleQueueVisibility } = useQueue()
                 <div className="flex flex-wrap items-center justify-center md:justify-start gap-4 md:gap-6 text-xs md:text-sm text-gray-400">
                   <div className="flex items-center gap-2">
                     <Calendar className="w-4 h-4" />
-                    <span>{playlist?.year || "Unknown Year"}</span>
+                    <span>{album?.year || "Unknown Year"}</span>
                   </div>
                   <div className="flex items-center gap-2">
                     <Clock className="w-4 h-4" />
                     <span>
-                      {songcount || allSongs.length} songs
+                      {allSongs.length} songs
                       {hasMore && (
                         <span className="text-purple-400 ml-1">
                           (More available)
@@ -534,26 +509,20 @@ const { showQueue, toggleQueueVisibility } = useQueue()
                       )}
                     </span>
                   </div>
-                  {playlist?.artists?.length > 0 && (
-                    <div className="flex items-center gap-2">
-                      <Users className="w-4 h-4" />
-                      <span>{playlist.artists.length} artists</span>
-                    </div>
-                  )}
                 </div>
 
                 {/* Action Buttons */}
                 <div className="flex flex-wrap items-center justify-center md:justify-start gap-3 md:gap-4 pt-2 md:pt-4">
                   <button
-                    onClick={() => handlePlayPlaylist(true)}
+                    onClick={() => handlePlayAlbum(true)}
                     className="group flex items-center gap-2 md:gap-3 bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-500 hover:to-pink-500 px-6 md:px-8 py-2.5 md:py-3 rounded-full font-semibold text-sm md:text-base transition-all duration-300 hover:scale-105 shadow-lg shadow-purple-500/25"
                   >
-                    {isPlaying && isCurrentPlaylist ? (
+                    {isPlaying && isCurrentAlbum ? (
                       <Pause className="w-4 h-4 md:w-5 md:h-5" />
                     ) : (
                       <Play className="w-4 h-4 md:w-5 md:h-5 ml-0.5" />
                     )}
-                    {isPlaying && isCurrentPlaylist ? "Pause" : "Play Playlist"}
+                    {isPlaying && isCurrentAlbum ? "Pause" : "Play Album"}
                   </button>
 
                   <button className="px-4 md:px-6 py-2.5 md:py-3 rounded-full font-semibold text-sm md:text-base transition-all duration-300 bg-transparent border border-white/20 hover:border-white/40">
@@ -593,7 +562,7 @@ const { showQueue, toggleQueueVisibility } = useQueue()
           >
             <div className="flex items-center justify-between mb-3 md:mb-4">
               <h2 className="text-xl md:text-2xl font-bold">
-                Songs ({songcount || allSongs.length}
+                Songs ({allSongs.length}
                 {hasMore && <span className="text-purple-400">+</span>})
               </h2>
               <div className="flex items-center gap-2 md:gap-3">
@@ -644,7 +613,7 @@ const { showQueue, toggleQueueVisibility } = useQueue()
 
               return (
                 <div
-                  key={`${song.id}-${index}`}
+                  key={song.id}
                   ref={isLastElement ? lastElementRef : null}
                   className={`group rounded-xl transition-all duration-300 ${
                     currentSong?.id === song.id ? "bg-white/10" : ""
@@ -679,7 +648,7 @@ const { showQueue, toggleQueueVisibility } = useQueue()
                     <div className="relative w-12 h-12 rounded-lg overflow-hidden bg-gradient-to-br from-gray-700 to-gray-600 flex-shrink-0">
                       <Image
                         src={song.image?.[2]?.url || "/placeholder-song.jpg"}
-                        alt={song.name || "Song"}
+                        alt={song.name}
                         width={48}
                         height={48}
                         className="w-full h-full object-cover"
@@ -713,14 +682,14 @@ const { showQueue, toggleQueueVisibility } = useQueue()
                             : "text-white"
                         }`}
                       >
-                        {decodeHTMLString(song.name) || "Unknown Song"}
+                        {song.name}
                       </h3>
                       <p className="text-xs text-gray-400 truncate">
                         {song.artists?.primary
                           ?.map((artist) => artist.name)
                           .join(", ") ||
-                          song.primaryArtists ||
-                          "Various Artists"}
+                          album?.artist ||
+                          "Various artist"}
                       </p>
                     </div>
 
@@ -774,7 +743,7 @@ const { showQueue, toggleQueueVisibility } = useQueue()
                       <div className="relative w-12 h-12 rounded-lg overflow-hidden bg-gradient-to-br from-gray-700 to-gray-600 flex-shrink-0">
                         <Image
                           src={song.image?.[2]?.url || "/placeholder-song.jpg"}
-                          alt={song.name || "Song"}
+                          alt={song.name}
                           width={48}
                           height={48}
                           className="w-full h-full object-cover"
@@ -812,23 +781,25 @@ const { showQueue, toggleQueueVisibility } = useQueue()
                               : "text-white"
                           }`}
                         >
-                          {decodeHTMLString(song.name) || "Unknown Song"}
+                          {song.name}
                         </h3>
                         <p className="text-sm text-gray-400">
                           {song.artists?.primary
                             ?.map((artist) => artist.name)
                             .join(", ") ||
-                            song.primaryArtists ||
-                            "Various Artists"}
+                            album?.artist ||
+                            "Various artist"}
                         </p>
                       </div>
                     </div>
 
                     {/* Artist */}
                     <div className="col-span-3 text-sm text-gray-400">
-                      {song.artists?.primary
+                      {song?.artists?.all
                         ?.map((artist) => artist.name)
-                        .join(", ") || "Various Artists"}
+                        .join(", ") ||
+                        album?.artist ||
+                        "Various artist"}
                     </div>
 
                     {/* Duration */}
@@ -858,20 +829,22 @@ const { showQueue, toggleQueueVisibility } = useQueue()
             })}
 
             {/* Show infinite loading indicator */}
-            {loading && page > 1 && hasMore && <InfiniteLoadingIndicator />}
+            {isFetching && currentPage > 1 && hasMore && (
+              <InfiniteLoadingIndicator />
+            )}
           </div>
 
           {/* No more results */}
           {!hasMore && allSongs.length > 0 && (
             <div className="text-center py-8 md:py-12">
               <div className="text-gray-400 text-sm md:text-base">
-                🎵 You&apos;ve reached the end of the playlist!
+                🎵 You&apos;ve reached the end of the album!
               </div>
             </div>
           )}
         </div>
 
-        {/* Queue Overlay (Mobile & Desktop) */}
+        {/* Queue Overlay (Mobile & Desktop) - Same as playlist */}
         <Queue
           isVisible={showQueue}
           onClose={() => dispatch(setShowQueue(false))}
@@ -882,6 +855,6 @@ const { showQueue, toggleQueueVisibility } = useQueue()
       </div>
     </>
   );
-};
+}
 
-export default SongDetails;
+

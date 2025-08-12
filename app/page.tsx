@@ -1,5 +1,5 @@
 "use client";
-export const dynamic = "force-dynamic";
+
 import GenreSelector from "@/components/genreselector";
 import Navbar from "@/components/navbar";
 import { useGetTracksByGenreQuery } from "@/redux/features/api/musicApi";
@@ -308,7 +308,7 @@ export default function Home() {
                           <div 
                             onClick={(e) => {
                               e.stopPropagation();
-                              router.push(`${item.seoUrl}/${item.id}?play=true&totalSong=${item.songCount}`);
+                              router.push(`${item.seoUrl}/${item.id}/true/${item.songCount}`);
                             }} 
                             className="absolute inset-0 bg-black/50 dark:bg-black/40 opacity-0 group-hover:opacity-100 active:opacity-100 transition-all duration-200 sm:duration-300 flex items-center justify-center tap-highlight-transparent"
                           >
@@ -338,7 +338,7 @@ export default function Home() {
                         {/* Title */}
                         <h3 className="font-bold text-xs sm:text-sm text-gray-900 dark:text-white group-hover:text-transparent group-hover:bg-gradient-to-r group-hover:from-purple-600 group-hover:to-pink-600 group-hover:bg-clip-text transition-all duration-300 line-clamp-2 leading-tight">
                           <Link 
-                            href={`${item.seoUrl}/${item.id}?totalSong=${item.songCount}`}
+                            href={`${item.seoUrl}/${item.id}/false/${item.songCount}`}
                             className="block tap-highlight-transparent"
                           >
                             {item.name}

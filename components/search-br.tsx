@@ -275,7 +275,6 @@ export default function SearchBar() {
     }
   );
 
-  console.log(searchResult)
 const handleNavigation = (item, type = null) => {
     const itemType = type || item.type?.toLowerCase();
     
@@ -287,26 +286,26 @@ const handleNavigation = (item, type = null) => {
       case 'song':
       case 'songs':
         // Navigate to song/track page
-        router.push(`/song/${item.title}/${item.id}`);
+        router.push(`/song/${item.title}/${item.id}/false/0`);
         break;
       case 'artist':
       case 'artists':
         // Navigate to artist page
-        router.push(`/artist/${item.title}/${item.id}`);
+        router.push(`/artist/${item.title}/${item.id}/false/0`);
         break;
       case 'album':
       case 'albums':
         // Navigate to album page
-        router.push(`/album/${item.title}/${item.id}`);
+        router.push(`/album/${item.title}/${item.id}/false/0`);
         break;
       case 'playlist':
       case 'playlists':
         // Navigate to playlist page
-        router.push(`/playlist/${item.title}/${item.id}?totalSong=${item.songCount || 0}`);
+        router.push(`/playlist/${item.title}/${item.id}/false/0`);
         break;
       default:
         // Fallback navigation
-        router.push(`/${itemType}/${item.title}/${item.id}`);
+        router.push(`/${itemType}/${item.title}/${item.id}/false/0`);
     }
   };
   // Handle click outside
