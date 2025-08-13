@@ -9,9 +9,7 @@ const SlideUpModal = ({ isOpen, onClose, children }) => {
   const [startY, setStartY] = useState(0);
   const [currentY, setCurrentY] = useState(0);
   const [isDragging, setIsDragging] = useState(false);
-   const { isVisible, isAnimating } = useModalAnimation(isOpen, 300);
-  // Animation states
-
+  const { isVisible, isAnimating } = useModalAnimation(isOpen, 300);
 
   const handleTouchStart = (e) => {
     setStartY(e.touches[0].clientY);
@@ -27,8 +25,9 @@ const SlideUpModal = ({ isOpen, onClose, children }) => {
     if (!isDragging) return;
 
     const diff = currentY - startY;
-    if (diff > 100) {
-      // Swipe down threshold
+    // Adjust swipe threshold for smaller screens
+    const threshold = window.innerHeight < 600 ? 60 : 100;
+    if (diff > threshold) {
       onClose();
     }
 
@@ -38,8 +37,6 @@ const SlideUpModal = ({ isOpen, onClose, children }) => {
   };
 
   const translateY = isDragging ? Math.max(0, currentY - startY) : 0;
- if (!isVisible) return null;
-
 
   // Don't render if not visible
   if (!isVisible) return null;
@@ -54,9 +51,11 @@ const SlideUpModal = ({ isOpen, onClose, children }) => {
         onClick={onClose}
       />
 
-      {/* Animated Modal Content */}
+      {/* Animated Modal Content - Responsive */}
       <div
-        className={`relative w-full bg-white dark:bg-gray-900 rounded-t-3xl shadow-2xl transition-all duration-300 ease-[cubic-bezier(0.4,0,0.2,1)] max-h-[90vh] overflow-hidden ${
+        className={`relative w-full bg-white dark:bg-gray-900 rounded-t-2xl xs:rounded-t-3xl shadow-2xl transition-all duration-300 ease-[cubic-bezier(0.4,0,0.2,1)] 
+          max-h-[95vh] xs:max-h-[92vh] sm:max-h-[90vh] md:max-h-[85vh]
+          overflow-hidden ${
           isAnimating 
             ? "translate-y-0 scale-100" 
             : "translate-y-full scale-95"
@@ -70,33 +69,38 @@ const SlideUpModal = ({ isOpen, onClose, children }) => {
         onTouchMove={handleTouchMove}
         onTouchEnd={handleTouchEnd}
       >
-        {/* Handle Bar */}
-        <div className="flex justify-center pt-3 pb-2">
-          <div className="w-10 h-1 bg-gray-300 dark:bg-gray-600 rounded-full" />
+        {/* Handle Bar - Responsive */}
+        <div className="flex justify-center pt-2 xs:pt-3 pb-1 xs:pb-2">
+          <div className="w-8 h-0.5 xs:w-10 xs:h-1 bg-gray-300 dark:bg-gray-600 rounded-full" />
         </div>
 
-        {/* Header */}
-        <div className="flex items-center justify-between px-4 pb-4">
+        {/* Header - Responsive */}
+        <div className="flex items-center justify-between px-3 xs:px-4 pb-2 xs:pb-4">
           <button
             onClick={onClose}
-            className="p-2 rounded-full hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
+            className="p-1.5 xs:p-2 rounded-full hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors touch-manipulation"
           >
-            <ChevronDown className="w-6 h-6 text-gray-600 dark:text-gray-400" />
+            <ChevronDown className="w-5 h-5 xs:w-6 xs:h-6 text-gray-600 dark:text-gray-400" />
           </button>
-          <h2 className="text-lg font-semibold text-gray-900 dark:text-white">
+          
+          <h2 className="text-base xs:text-lg font-semibold text-gray-900 dark:text-white truncate px-2">
             Now Playing
           </h2>
+          
           <button
             onClick={onClose}
-            className="p-2 rounded-full hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
+            className="p-1.5 xs:p-2 rounded-full hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors touch-manipulation"
           >
-            <X className="w-6 h-6 text-gray-600 dark:text-gray-400" />
+            <X className="w-5 h-5 xs:w-6 xs:h-6 text-gray-600 dark:text-gray-400" />
           </button>
         </div>
 
-        {/* Content */}
-        <div className="px-4 pb-4 overflow-y-auto max-h-[calc(90vh-100px)]">
-          {children}
+        {/* Content - Responsive */}
+        <div className="px-3 xs:px-4 pb-3 xs:pb-4 overflow-y-auto 
+          max-h-[calc(95vh-80px)] xs:max-h-[calc(92vh-90px)] sm:max-h-[calc(90vh-100px)] md:max-h-[calc(85vh-100px)]">
+          <div className="space-y-3 xs:space-y-4 sm:space-y-6">
+            {children}
+          </div>
         </div>
       </div>
     </div>
