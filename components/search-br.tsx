@@ -16,39 +16,45 @@ import {
 import { useGetGlobalSearchResultsQuery } from "@/redux/features/api/musicApi";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
+
 const isValidImageUrl = (url) => {
-  if (!url || typeof url !== 'string') return false
-  
+  if (!url || typeof url !== "string") return false;
+
   // Check if URL contains HTML error content
-  if (url.includes('<!doctype html>') || 
-      url.includes('<html') || 
-      url.includes('Internal Server Error') ||
-      url.includes('<title>')) {
-    return false
+  if (
+    url.includes("<!doctype html>") ||
+    url.includes("<html") ||
+    url.includes("Internal Server Error") ||
+    url.includes("<title>")
+  ) {
+    return false;
   }
-  
+
   // Check if URL looks like a proper image URL
-  const imageExtensions = /\.(jpg|jpeg|png|gif|webp|svg)(\?.*)?$/i
-  const hasImageExtension = imageExtensions.test(url)
-  const isHttpUrl = url.startsWith('http')
-  
-  return isHttpUrl && (hasImageExtension || url.includes('saavn') || url.includes('jiosaavn'))
-}
+  const imageExtensions = /\.(jpg|jpeg|png|gif|webp|svg)(\?.*)?$/i;
+  const hasImageExtension = imageExtensions.test(url);
+  const isHttpUrl = url.startsWith("http");
+
+  return (
+    isHttpUrl &&
+    (hasImageExtension || url.includes("saavn") || url.includes("jiosaavn"))
+  );
+};
 
 // Get the best available image URL from the image array
 const getBestImageUrl = (imageArray) => {
-  if (!imageArray || !Array.isArray(imageArray)) return null
-  
+  if (!imageArray || !Array.isArray(imageArray)) return null;
+
   // Try to find a valid image URL, preferring higher quality
-  const validImages = imageArray.filter(img => 
-    img?.url && isValidImageUrl(img.url)
-  )
-  
-  if (validImages.length === 0) return null
-  
+  const validImages = imageArray.filter(
+    (img) => img?.url && isValidImageUrl(img.url)
+  );
+
+  if (validImages.length === 0) return null;
+
   // Return highest quality available (usually the last one)
-  return validImages[validImages.length - 1]?.url || null
-}
+  return validImages[validImages.length - 1]?.url || null;
+};
 const getIcon = (type) => {
   switch (type?.toLowerCase()) {
     case "song":
@@ -83,10 +89,12 @@ const getSectionTitle = (key) => {
 
 // Search Result Components
 const TopQueryResult = ({ item, onNavigate }) => {
-  const imageUrl = getBestImageUrl(item.image)
-  
+  const imageUrl = getBestImageUrl(item.image);
+  const router = useRouter()
+
+
   return (
-    <div 
+    <div
       className="group relative bg-gradient-to-br from-purple-500/10 to-pink-500/10 dark:from-purple-500/20 dark:to-pink-500/20 rounded-2xl p-6 hover:from-purple-500/20 hover:to-pink-500/20 dark:hover:from-purple-500/30 dark:hover:to-pink-500/30 transition-all duration-300 cursor-pointer"
       onClick={() => onNavigate(item)}
     >
@@ -95,20 +103,22 @@ const TopQueryResult = ({ item, onNavigate }) => {
           {imageUrl ? (
             <Image
               src={imageUrl}
-              alt={item.title || 'Music item'}
+              alt={item.title || "Music item"}
               width={64}
               height={64}
               className="w-full h-full object-cover"
               onError={(e) => {
                 // Hide the image and show icon fallback
-                e.target.style.display = 'none'
-                e.target.nextElementSibling.style.display = 'flex'
+                e.target.style.display = "none";
+                e.target.nextElementSibling.style.display = "flex";
               }}
             />
           ) : null}
-          <div 
-            className={`w-full h-full flex items-center justify-center ${imageUrl ? 'hidden' : 'flex'}`}
-            style={{ display: imageUrl ? 'none' : 'flex' }}
+          <div
+            className={`w-full h-full flex items-center justify-center ${
+              imageUrl ? "hidden" : "flex"
+            }`}
+            style={{ display: imageUrl ? "none" : "flex" }}
           >
             {getIcon(item.type)}
           </div>
@@ -119,7 +129,9 @@ const TopQueryResult = ({ item, onNavigate }) => {
             {item.title}
           </h3>
           {item.artist && (
-            <p className="text-gray-600 dark:text-gray-400 mb-2">{item.artist}</p>
+            <p className="text-gray-600 dark:text-gray-400 mb-2">
+              {item.artist}
+            </p>
           )}
           <div className="flex items-center gap-2">
             {getIcon(item.type)}
@@ -128,10 +140,11 @@ const TopQueryResult = ({ item, onNavigate }) => {
             </span>
           </div>
         </div>
-        <button 
+        <button
           className="opacity-0 group-hover:opacity-100 w-12 h-12 bg-purple-600 hover:bg-purple-700 rounded-full flex items-center justify-center text-white transition-all duration-200"
           onClick={(e) => {
             e.stopPropagation();
+           router.push(`/${item.type}/${item.title}/${item.id}/true/0`);
             // Handle play action
           }}
         >
@@ -139,13 +152,12 @@ const TopQueryResult = ({ item, onNavigate }) => {
         </button>
       </div>
     </div>
-  )
-}
-
+  );
+};
 
 const SongResult = ({ item, index, onNavigation }) => {
-  const imageUrl = getBestImageUrl(item.image)
-  
+  const imageUrl = getBestImageUrl(item.image);
+
   return (
     <div
       className="group flex items-center gap-3 px-3 py-3 rounded-xl hover:bg-gray-50 dark:hover:bg-white/5 transition-all duration-200 cursor-pointer animate-item-up"
@@ -156,19 +168,21 @@ const SongResult = ({ item, index, onNavigation }) => {
         {imageUrl ? (
           <Image
             src={imageUrl}
-            alt={item.title || 'Song'}
+            alt={item.title || "Song"}
             width={48}
             height={48}
             className="w-full h-full object-cover"
             onError={(e) => {
-              e.target.style.display = 'none'
-              e.target.nextElementSibling.style.display = 'flex'
+              e.target.style.display = "none";
+              e.target.nextElementSibling.style.display = "flex";
             }}
           />
         ) : null}
-        <div 
-          className={`w-full h-full flex items-center justify-center ${imageUrl ? 'hidden' : 'flex'}`}
-          style={{ display: imageUrl ? 'none' : 'flex' }}
+        <div
+          className={`w-full h-full flex items-center justify-center ${
+            imageUrl ? "hidden" : "flex"
+          }`}
+          style={{ display: imageUrl ? "none" : "flex" }}
         >
           <Music className="w-5 h-5 text-gray-400" />
         </div>
@@ -198,13 +212,12 @@ const SongResult = ({ item, index, onNavigation }) => {
         </button>
       </div>
     </div>
-  )
-}
-
+  );
+};
 
 const AlbumArtistResult = ({ item, type, index, onNavigation }) => {
-  const imageUrl = getBestImageUrl(item.image)
-  
+  const imageUrl = getBestImageUrl(item.image);
+
   return (
     <div
       className="group flex items-center gap-3 px-3 py-3 rounded-xl hover:bg-gray-50 dark:hover:bg-white/5 transition-all duration-200 cursor-pointer animate-item-up"
@@ -220,14 +233,16 @@ const AlbumArtistResult = ({ item, type, index, onNavigation }) => {
             height={48}
             className="w-full h-full object-cover"
             onError={(e) => {
-              e.target.style.display = 'none'
-              e.target.nextElementSibling.style.display = 'flex'
+              e.target.style.display = "none";
+              e.target.nextElementSibling.style.display = "flex";
             }}
           />
         ) : null}
-        <div 
-          className={`w-full h-full flex items-center justify-center ${imageUrl ? 'hidden' : 'flex'}`}
-          style={{ display: imageUrl ? 'none' : 'flex' }}
+        <div
+          className={`w-full h-full flex items-center justify-center ${
+            imageUrl ? "hidden" : "flex"
+          }`}
+          style={{ display: imageUrl ? "none" : "flex" }}
         >
           {getIcon(type)}
         </div>
@@ -254,11 +269,10 @@ const AlbumArtistResult = ({ item, type, index, onNavigation }) => {
         </span>
       </div>
     </div>
-  )
-}
+  );
+};
 
 // Utility function to check if URL is a valid image URL
-
 
 export default function SearchBar() {
   const [expanded, setExpanded] = useState(false);
@@ -266,7 +280,7 @@ export default function SearchBar() {
   const [showResults, setShowResults] = useState(false);
   const inputRef = useRef(null);
   const searchContainerRef = useRef(null);
-  const router = useRouter()
+  const router = useRouter();
 
   const { data: searchResult } = useGetGlobalSearchResultsQuery(
     { query },
@@ -275,31 +289,31 @@ export default function SearchBar() {
     }
   );
 
-const handleNavigation = (item, type = null) => {
+  const handleNavigation = (item, type = null) => {
     const itemType = type || item.type?.toLowerCase();
-    
+
     // Close search first
     setExpanded(false);
-    
+
     // Navigate based on type
     switch (itemType) {
-      case 'song':
-      case 'songs':
+      case "song":
+      case "songs":
         // Navigate to song/track page
         router.push(`/song/${item.title}/${item.id}/false/0`);
         break;
-      case 'artist':
-      case 'artists':
+      case "artist":
+      case "artists":
         // Navigate to artist page
         router.push(`/artist/${item.title}/${item.id}/false/0`);
         break;
-      case 'album':
-      case 'albums':
+      case "album":
+      case "albums":
         // Navigate to album page
         router.push(`/album/${item.title}/${item.id}/false/0`);
         break;
-      case 'playlist':
-      case 'playlists':
+      case "playlist":
+      case "playlists":
         // Navigate to playlist page
         router.push(`/playlist/${item.title}/${item.id}/false/0`);
         break;
@@ -387,7 +401,7 @@ const handleNavigation = (item, type = null) => {
           ...value,
         }))
     : [];
-console.log(processedResults)
+  console.log(processedResults);
   // ----- Compact state -----
   if (!expanded) {
     return (

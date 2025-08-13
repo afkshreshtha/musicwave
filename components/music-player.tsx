@@ -27,6 +27,7 @@ import {
   setRepeatMode,
 } from "@/redux/features/musicPlayerSlice";
 import Link from "next/link";
+import { useMediaSession } from "@/hooks/useMediaSession";
 
 const MusicPlayer = ({ audioRef }) => {
   const dispatch = useDispatch();
@@ -34,8 +35,46 @@ const MusicPlayer = ({ audioRef }) => {
   const [showVolumeSlider, setShowVolumeSlider] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [previousVolume, setPreviousVolume] = useState(50);
+  const [isTouching, setIsTouching] = useState(false);
+  useMediaSession()
+   useEffect(() => {
+    if (audioRef.current) {
+      window.audioElement = audioRef.current;
+    }
+  }, [audioRef]);
+useEffect(() => {
+  const audio = audioRef.current;
+  
+  if (audio) {
+    // Store reference globally for Media Session
+    window.audioElement = audio;
+    
+    // Update Media Session position as audio plays
+    const updatePosition = () => {
+      if ('mediaSession' in navigator && 'setPositionState' in navigator.mediaSession) {
+        navigator.mediaSession.setPositionState({
+          duration: audio.duration || 0,
+          playbackRate: audio.paused ? 0 : 1.0,
+          position: audio.currentTime || 0
+        });
+      }
+    };
 
+    audio.addEventListener('timeupdate', updatePosition);
+    audio.addEventListener('durationchange', updatePosition);
+    audio.addEventListener('play', updatePosition);
+    audio.addEventListener('pause', updatePosition);
+
+    return () => {
+      audio.removeEventListener('timeupdate', updatePosition);
+      audio.removeEventListener('durationchange', updatePosition);
+      audio.removeEventListener('play', updatePosition);
+      audio.removeEventListener('pause', updatePosition);
+    };
+  }
+}, [audioRef]);
   const progressRef = useRef(null);
+  const topProgressRef = useRef(null); // Add ref for top progress bar
 
   // Get player state from Redux
   const {
@@ -78,15 +117,27 @@ const MusicPlayer = ({ audioRef }) => {
     dispatch(previousSong());
   }, [dispatch]);
 
-  // Progress handling
+  // Enhanced progress handling that works with both desktop and mobile progress bars
   const handleProgressChange = useCallback(
-    (e) => {
-      if (!progressRef.current || !duration) return;
+    (e, isTopBar = false) => {
+      const targetRef = isTopBar ? topProgressRef : progressRef;
+      if (!targetRef.current || !duration) return;
 
-      const rect = progressRef.current.getBoundingClientRect();
+      const rect = targetRef.current.getBoundingClientRect();
+      let clientX;
+
+      // Handle both mouse and touch events
+      if (e.touches && e.touches.length > 0) {
+        clientX = e.touches[0].clientX;
+      } else if (e.changedTouches && e.changedTouches.length > 0) {
+        clientX = e.changedTouches[0].clientX;
+      } else {
+        clientX = e.clientX;
+      }
+
       const percent = Math.max(
         0,
-        Math.min(1, (e.clientX - rect.left) / rect.width)
+        Math.min(1, (clientX - rect.left) / rect.width)
       );
       const newTime = percent * duration;
 
@@ -98,6 +149,30 @@ const MusicPlayer = ({ audioRef }) => {
     },
     [dispatch, duration, audioRef]
   );
+
+  // Touch handlers for top progress bar
+  const handleTopProgressTouchStart = useCallback((e) => {
+    e.preventDefault();
+    setIsTouching(true);
+    handleProgressChange(e, true);
+  }, [handleProgressChange]);
+
+  const handleTopProgressTouchMove = useCallback((e) => {
+    if (isTouching) {
+      e.preventDefault();
+      handleProgressChange(e, true);
+    }
+  }, [isTouching, handleProgressChange]);
+
+  const handleTopProgressTouchEnd = useCallback((e) => {
+    e.preventDefault();
+    setIsTouching(false);
+  }, []);
+
+  // Click handler for top progress bar
+  const handleTopProgressClick = useCallback((e) => {
+    handleProgressChange(e, true);
+  }, [handleProgressChange]);
 
   // Volume control
   const handleVolumeChange = useCallback(
@@ -131,7 +206,7 @@ const MusicPlayer = ({ audioRef }) => {
     dispatch(setRepeatMode(modes[nextIndex]));
   }, [dispatch, repeatMode]);
 
-  // Mouse events for progress dragging
+  // Mouse events for desktop progress dragging
   useEffect(() => {
     const handleMouseMove = (e) => {
       if (isDragging) {
@@ -154,14 +229,45 @@ const MusicPlayer = ({ audioRef }) => {
     };
   }, [isDragging, handleProgressChange]);
 
+  // Touch events for top progress bar
+  useEffect(() => {
+    const handleTouchMove = (e) => {
+      if (isTouching) {
+        handleTopProgressTouchMove(e);
+      }
+    };
+
+    const handleTouchEnd = (e) => {
+      if (isTouching) {
+        handleTopProgressTouchEnd(e);
+      }
+    };
+
+    if (isTouching) {
+      document.addEventListener("touchmove", handleTouchMove, { passive: false });
+      document.addEventListener("touchend", handleTouchEnd);
+    }
+
+    return () => {
+      document.removeEventListener("touchmove", handleTouchMove);
+      document.removeEventListener("touchend", handleTouchEnd);
+    };
+  }, [isTouching, handleTopProgressTouchMove, handleTopProgressTouchEnd]);
+
   if (!currentSong) return null;
 
   return (
     <div className="fixed bottom-0 left-0 right-0 z-50">
-      {/* Simplified Top Progress Bar */}
-      <div className="h-1 w-full bg-gray-200 dark:bg-gray-800">
+      {/* Interactive Top Progress Bar */}
+      <div 
+        ref={topProgressRef}
+        className="h-1 w-full bg-gray-200 dark:bg-gray-800 cursor-pointer touch-none"
+        onClick={handleTopProgressClick}
+        onTouchStart={handleTopProgressTouchStart}
+        style={{ touchAction: 'none' }}
+      >
         <div
-          className="h-full bg-gradient-to-r from-blue-500 to-purple-500 transition-all duration-100"
+          className="h-full bg-gradient-to-r from-blue-500 to-purple-500 transition-all duration-100 pointer-events-none"
           style={{ width: `${progressPercentage()}%` }}
         />
       </div>
@@ -184,7 +290,7 @@ const MusicPlayer = ({ audioRef }) => {
             <div className="min-w-0 flex-1">
               <h4 className="font-medium text-gray-900 dark:text-white truncate text-sm">
                 <Link
-                  href={`/song/${currentSong.name}/${currentSong.id}`}
+                  href={`/song/${currentSong.name}/${currentSong.id}/false/0`}
                   className="hover:underline"
                 >
                   {currentSong.name}
@@ -249,7 +355,7 @@ const MusicPlayer = ({ audioRef }) => {
                 <div className="min-w-0">
                   <h4 className="font-medium text-gray-900 dark:text-white truncate">
                     <Link
-                      href={`/song/${currentSong.name}/${currentSong.id}`}
+                      href={`/song/${currentSong.name}/${currentSong.id}/false/0`}
                       className="hover:underline"
                     >
                       {currentSong.name}

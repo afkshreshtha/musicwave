@@ -50,7 +50,7 @@ import Queue from "@/components/queue";
 import { RootState } from "@/redux/store";
 
 const ArtistDetailPage = () => {
-  const { slug,autoPlay } = useParams();
+  const { slug, autoPlay } = useParams();
   const router = useRouter();
   const [scrolled, setScrolled] = useState(false);
   const [isFollowing, setIsFollowing] = useState(false);
@@ -127,7 +127,7 @@ const ArtistDetailPage = () => {
   console.log("Artist data:", artist);
 
   const { isPlaying, currentSong, queue } = useSelector(
-    (state:RootState) => state.player
+    (state: RootState) => state.player
   );
   useEffect(() => {
     setSongCurrentPage(1);
@@ -258,7 +258,6 @@ const ArtistDetailPage = () => {
     const shouldAutoPlay = autoPlay === "true";
     if (shouldAutoPlay && songs?.songs?.length > 0) {
       handlePlayArtistSongs(true);
-
     }
   }, [songs?.length, autoPlay]);
 
@@ -799,8 +798,11 @@ const ArtistDetailPage = () => {
                                 {formatNumber(song.playCount)}
                               </span>
                             )}
-                            <button className="p-2 rounded-full hover:bg-white/10 opacity-0 group-hover:opacity-100 transition-all duration-200">
-                              <Heart className="w-4 h-4 text-gray-400 hover:text-red-400" />
+                            <button
+                              //  onClick={() => handleLike(song.id)}
+                              className="p-1.5 rounded-full hover:bg-white/10 transition-colors duration-200 text-gray-400 hover:text-white opacity-100 md:opacity-0 md:group-hover:opacity-100"
+                            >
+                              <Heart className="w-4 h-4" />
                             </button>
                           </div>
                         </div>
@@ -828,7 +830,9 @@ const ArtistDetailPage = () => {
                         <div
                           key={album.id}
                           className="group bg-white/5 backdrop-blur-xl rounded-2xl p-4 border border-white/5 hover:border-white/20 hover:bg-white/10 transition-all duration-300 cursor-pointer"
-                          onClick={() => router.push(`/album/${album.id}`)}
+                          onClick={() =>
+                            router.push(`/album/${album.id}/false/0`)
+                          }
                         >
                           <div className="relative mb-4">
                             <div className="w-full aspect-square rounded-xl overflow-hidden bg-gradient-to-br from-gray-700 to-gray-600">
@@ -971,8 +975,11 @@ const ArtistDetailPage = () => {
                                   {formatNumber(song.playCount)}
                                 </span>
                               )}
-                              <button className="p-2 rounded-full hover:bg-white/10 opacity-0 group-hover:opacity-100 transition-all duration-200">
-                                <Heart className="w-4 h-4 text-gray-400 hover:text-red-400" />
+                              <button
+                                // onClick={() => handleLi(song.id)}
+                                className="p-1.5 rounded-full hover:bg-white/10 transition-colors duration-200 text-gray-400 hover:text-white opacity-100 md:opacity-0 md:group-hover:opacity-100"
+                              >
+                                <Heart className="w-4 h-4" />
                               </button>
                             </div>
                           </div>
@@ -1043,7 +1050,9 @@ const ArtistDetailPage = () => {
                             ref={isLastElement ? lastAlbumElementRef : null}
                             className="group bg-white/5 backdrop-blur-xl rounded-2xl p-4 border border-white/5 hover:border-white/20 hover:bg-white/10 transition-all duration-300 cursor-pointer"
                             onClick={() =>
-                              router.push(`/album/${album.name}/${album.id}`)
+                              router.push(
+                                `/album/${album.name}/${album.id}/false/0`
+                              )
                             }
                           >
                             <div className="relative mb-4">

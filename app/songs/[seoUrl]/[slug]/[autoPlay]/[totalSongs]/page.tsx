@@ -74,6 +74,9 @@ const PlaylistDetailsPage = () => {
     useSelector((state: RootState) => state.player);
 
   const totalSongs = params.totalSongs;
+  const playlistName = params.seoUrl; // "best-of-indipop-hindi"
+  const playlistId = params.slug; // "940775963"
+  const autoPlay = params.autoPlay;
   const {
     data: songsData,
     isLoading: songsLoading,
@@ -143,13 +146,20 @@ const PlaylistDetailsPage = () => {
   }, [allSongs, dispatch]);
 
   // Check for auto-play on mount
+  console.log(router);
   useEffect(() => {
-    const shouldAutoPlay = params.autoPlay === "true";
+    const shouldAutoPlay = autoPlay === "true";
     if (shouldAutoPlay && allSongs.length > 0) {
       console.log("Auto-playing playlist");
       handlePlayPlaylist(true);
+
+      // Update URL to set autoPlay to false
+      // You'll need to navigate to a new URL since these are route params
+      router.replace(
+        `/songs/${playlistName}/${playlistId}/false/${totalSongs}`
+      );
     }
-  }, [allSongs.length, params.autoPlay]);
+  }, [allSongs.length, autoPlay, playlistName, playlistId, totalSongs]);
 
   useEffect(() => {
     const handleScroll = () => {
@@ -668,11 +678,12 @@ const PlaylistDetailsPage = () => {
                   {/* Song Info */}
                   <div className="flex-1 min-w-0">
                     <h3
-                      className={`font-semibold text-sm truncate ${
+                      className={`font-semibold text-sm truncate cursor-pointer ${
                         currentSong?.id === song.id
                           ? "text-purple-400"
                           : "text-white"
                       }`}
+                      onClick={() => handlePlayPause(song.id)}
                     >
                       {song.name}
                     </h3>
@@ -692,12 +703,12 @@ const PlaylistDetailsPage = () => {
                           String(song.duration % 60).padStart(2, "0")
                         : "--:--"}
                     </span>
-                    <button
-                      onClick={() => handleLike(song.id)}
-                      className="p-1.5 rounded-full hover:bg-white/10 transition-colors duration-200 text-gray-400 hover:text-white opacity-0 group-hover:opacity-100"
-                    >
-                      <Heart className="w-4 h-4" />
-                    </button>
+                      <button
+                        onClick={() => handleLike(song.id)}
+                        className="p-1.5 rounded-full hover:bg-white/10 transition-colors duration-200 text-gray-400 hover:text-white opacity-100 md:opacity-0 md:group-hover:opacity-100"
+                      >
+                        <Heart className="w-4 h-4" />
+                      </button>
                   </div>
                 </div>
 
@@ -757,11 +768,12 @@ const PlaylistDetailsPage = () => {
                     </div>
                     <div>
                       <h3
-                        className={`font-semibold ${
+                        className={`font-semibold cursor-pointer ${
                           currentSong?.id === song.id
                             ? "text-purple-400"
                             : "text-white"
                         }`}
+                        onClick={() => handlePlayPause(song.id)}
                       >
                         {song.name}
                       </h3>

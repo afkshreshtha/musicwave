@@ -6,17 +6,9 @@ import {
   Heart,
   Share2,
   Download,
-  Clock,
-  Calendar,
   MoreHorizontal,
-  Loader,
   ArrowLeft,
-  SkipBack,
-  SkipForward,
-  Mic2,
   Album,
-  Eye,
-  MessageCircle,
   Plus,
   Check,
 } from "lucide-react";
@@ -25,7 +17,6 @@ import { useDispatch, useSelector } from "react-redux";
 import { playPause, playSong } from "@/redux/features/musicPlayerSlice";
 import { useGetSongByIdQuery } from "@/redux/features/api/musicApi";
 import Navbar from "@/components/navbar";
-import MusicPlayer from "@/components/music-player";
 import Image from "next/image";
 import Link from "next/link";
 import { RootState } from "@/redux/store";
@@ -35,12 +26,12 @@ const SongDetailPage = () => {
   const router = useRouter();
  
   const [scrolled, setScrolled] = useState(false);
-  const [showLyrics, setShowLyrics] = useState(false);
   const [isLiked, setIsLiked] = useState(false);
   const [isInPlaylist, setIsInPlaylist] = useState(false);
 
   const headerRef = useRef(null);
   const dispatch = useDispatch();
+  const params = useParams()
   console.log(slug);
 
   // Get song data using RTK Query
@@ -54,7 +45,8 @@ const SongDetailPage = () => {
   console.log(song);
 
   const { isPlaying, currentSong } = useSelector((state:RootState) => state.player);
-
+  const songName = params.seoUrl; // "best-of-indipop-hindi"
+  const songId = params.slug; // "940775963"
   // Utility function to decode HTML strings
   const decodeHTMLString = (str) => {
     return (
@@ -99,7 +91,9 @@ const SongDetailPage = () => {
     const shouldAutoPlay =  autoPlay=== "true";
     if (shouldAutoPlay && song.id) {
       handlePlaySong(true);
-
+      router.replace(
+        `/song/${songName}/${songId}/false/0`
+      );
     }
   }, [song.id,  autoPlay]);
 
@@ -381,7 +375,7 @@ const SongDetailPage = () => {
                   {song.artists?.primary?.map((artist, index) => (
                     <React.Fragment key={artist.id}>
                       <Link
-                        href={`/artist/${artist.name}/${artist.id}`}
+                        href={`/artist/${artist.name}/${artist.id}/false/0`}
                         className="group flex items-center gap-2 hover:text-purple-400 transition-colors duration-200"
                       >
                         {artist.image && (
@@ -496,7 +490,7 @@ const SongDetailPage = () => {
                 <div className="flex items-center gap-3">
                   <span className="text-gray-400 w-20">Album:</span>
                   <span className="text-white font-medium">
-                   <Link href={`/album/${song.album.name}/${song.album.id}`}>
+                   <Link href={`/album/${song.album.name}/${song.album.id}/false/0`}>
                       {song.album.name}
                    </Link>
                  

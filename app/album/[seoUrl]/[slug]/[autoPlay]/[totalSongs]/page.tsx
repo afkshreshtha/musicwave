@@ -39,7 +39,6 @@ import {
   startPlaylist,
 } from "@/redux/features/musicPlayerSlice";
 import Navbar from "@/components/navbar";
-import MusicPlayer from "@/components/music-player";
 import Image from "next/image";
 import Queue from "@/components/queue";
 import { RootState } from "@/redux/store";
@@ -77,7 +76,6 @@ export default function AlbumPage() {
   } = useSelector((state: RootState) => state.player);
 
   const totalSongs = params.totalSongs;
-
 
   // Reset pagination when album changes
   useEffect(() => {
@@ -144,7 +142,6 @@ export default function AlbumPage() {
     if (shouldAutoPlay && allSongs.length > 0) {
       console.log("Auto-playing album");
       handlePlayAlbum(true);
-
     }
   }, [allSongs.length, params.autoPlay]);
 
@@ -676,11 +673,12 @@ export default function AlbumPage() {
                     {/* Song Info */}
                     <div className="flex-1 min-w-0">
                       <h3
-                        className={`font-semibold text-sm truncate ${
+                        className={`font-semibold text-sm truncate cursor-pointer${
                           currentSong?.id === song.id
                             ? "text-purple-400"
                             : "text-white"
                         }`}
+                        onClick={() => handlePlayPause(song.id)}
                       >
                         {song.name}
                       </h3>
@@ -704,7 +702,7 @@ export default function AlbumPage() {
                       </span>
                       <button
                         onClick={() => handleLike(song.id)}
-                        className="p-1.5 rounded-full hover:bg-white/10 transition-colors duration-200 text-gray-400 hover:text-white opacity-0 group-hover:opacity-100"
+                        className="p-1.5 rounded-full hover:bg-white/10 transition-colors duration-200 text-gray-400 hover:text-white opacity-100 md:opacity-0 md:group-hover:opacity-100"
                       >
                         <Heart className="w-4 h-4" />
                       </button>
@@ -775,11 +773,12 @@ export default function AlbumPage() {
                       </div>
                       <div>
                         <h3
-                          className={`font-semibold ${
+                          className={`font-semibold cursor-pointer ${
                             currentSong?.id === song.id
                               ? "text-purple-400"
                               : "text-white"
                           }`}
+                          onClick={() => handlePlayPause(song.id)}
                         >
                           {song.name}
                         </h3>
@@ -856,5 +855,3 @@ export default function AlbumPage() {
     </>
   );
 }
-
-

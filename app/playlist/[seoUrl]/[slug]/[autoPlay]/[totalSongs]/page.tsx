@@ -701,6 +701,7 @@ const { showQueue, toggleQueueVisibility } = useQueue()
                             ? "text-purple-400"
                             : "text-white"
                         }`}
+                        onClick={() => handlePlayPause(song.id)}
                       >
                         {decodeHTMLString(song.name) || "Unknown Song"}
                       </h3>
@@ -722,12 +723,12 @@ const { showQueue, toggleQueueVisibility } = useQueue()
                             String(song.duration % 60).padStart(2, "0")
                           : "--:--"}
                       </span>
-                      <button
-                        onClick={() => handleLike(song.id)}
-                        className="p-1.5 rounded-full hover:bg-white/10 transition-colors duration-200 text-gray-400 hover:text-white opacity-0 group-hover:opacity-100"
-                      >
-                        <Heart className="w-4 h-4" />
-                      </button>
+                       <button
+                         onClick={() => handleLike(song.id)}
+                         className="p-1.5 rounded-full hover:bg-white/10 transition-colors duration-200 text-gray-400 hover:text-white opacity-100 md:opacity-0 md:group-hover:opacity-100"
+                       >
+                         <Heart className="w-4 h-4" />
+                       </button>
                     </div>
                   </div>
 
@@ -795,11 +796,12 @@ const { showQueue, toggleQueueVisibility } = useQueue()
                       </div>
                       <div>
                         <h3
-                          className={`font-semibold ${
+                          className={`font-semibold cursor-pointer ${
                             currentSong?.id === song.id
                               ? "text-purple-400"
                               : "text-white"
                           }`}
+                          onClick={() => handlePlayPause(song.id)}
                         >
                           {decodeHTMLString(song.name) || "Unknown Song"}
                         </h3>
