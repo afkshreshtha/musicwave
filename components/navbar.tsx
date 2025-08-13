@@ -25,7 +25,7 @@ export default function Navbar() {
             {/* Ultra small: Just "W", Small: "Wave", Medium+: "MusicWave" */}
             <span className="hidden md:inline">MusicWave</span>
             <span className="hidden xs:inline md:hidden">Wave</span>
-            <span className="xs:hidden">Wave</span>
+            <span className=" sm:hidden">Wave</span>
           </span>
         </Link>
 
