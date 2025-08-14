@@ -55,9 +55,9 @@ export default function Navbar() {
           </Link>
 
           {/* Mode Toggle with enhanced mobile-responsive styling */}
-          {/* <div className="relative scale-75 xs:scale-90 sm:scale-100 origin-center">
+        <div className="relative scale-75 xs:scale-90 sm:scale-100 origin-center">
             <ModeToggle />
-          </div> */}
+          </div> 
         </div>
       </nav>
 
