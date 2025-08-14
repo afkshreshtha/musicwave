@@ -41,7 +41,7 @@ const NowPlayingModal = () => {
             currentSong.artists.primary.map((artist, index) => (
               <React.Fragment key={artist.id || index}>
                 <Link 
-                  href={`/artist/${artist.id || artist.name.toLowerCase().replace(/\s+/g, '-')}/${artist.name}/false/0`}
+                  href={`/artist/${artist.name}/${artist.id || artist.name.toLowerCase().replace(/\s+/g, '-')}/false/0`}
                   className="hover:text-blue-500 dark:hover:text-blue-400 transition-colors duration-200 cursor-pointer"
                 >
                   {artist.name}
