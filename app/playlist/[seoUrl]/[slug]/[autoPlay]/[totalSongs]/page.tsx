@@ -57,7 +57,7 @@ const SongDetails = () => {
 
   // Fixed: Added proper query structure and error handling
   const { songs, hasMore, loading, error } = usePlaylist(id, page);
-  console.log(slug);
+
   // Get playlist data using RTK Query
   const {
     data: playlistData,
@@ -129,7 +129,7 @@ const { showQueue, toggleQueueVisibility } = useQueue()
   useEffect(() => {
     const shouldAutoPlay = autoPlay === "true";
     if (shouldAutoPlay && allSongs.length > 0) {
-      console.log("Auto-playing playlist");
+    
       handlePlayPlaylist(true);
 
     }
@@ -150,10 +150,7 @@ const { showQueue, toggleQueueVisibility } = useQueue()
   // Fixed: Renamed function to match convention
   const handlePlayPlaylist = (autoPlay = false) => {
     if (allSongs.length > 0) {
-      console.log("handlePlayPlaylist called", {
-        autoPlay,
-        songsLength: allSongs.length,
-      });
+
       dispatch(
         startPlaylist({
           songs: allSongs,
@@ -186,7 +183,7 @@ const { showQueue, toggleQueueVisibility } = useQueue()
 
   const handleLike = (songId) => {
     // Implement like functionality
-    console.log("Liked song:", songId);
+  
   };
 
   const handleRemoveFromQueue = (songId) => {
@@ -207,12 +204,7 @@ const { showQueue, toggleQueueVisibility } = useQueue()
     // You might need to add a new action to set the current song index
     // dispatch(setCurrentSongIndex(actualQueueIndex));
 
-    console.log(
-      "Playing from queue:",
-      song.name,
-      "at index:",
-      actualQueueIndex
-    );
+
   };
 
   const handleRepeatToggle = () => {

@@ -288,7 +288,13 @@ export default function SearchBar() {
       skip: !query || query.length < 2,
     }
   );
-
+const handleKeyPress = (e) => {
+  if (e.key === 'Enter' && query.trim()) {
+    // Close search and redirect to search page
+    setExpanded(false);
+    router.push(`/search/${encodeURIComponent(query.trim())}`);
+  }
+};
   const handleNavigation = (item, type = null) => {
     const itemType = type || item.type?.toLowerCase();
 
@@ -401,7 +407,7 @@ export default function SearchBar() {
           ...value,
         }))
     : [];
-  console.log(processedResults);
+
   // ----- Compact state -----
   if (!expanded) {
     return (
@@ -466,6 +472,7 @@ export default function SearchBar() {
                 placeholder="Search songs, artists, albums..."
                 className="flex-1 border-none outline-none ring-0 bg-transparent text-lg sm:text-xl font-medium dark:text-white placeholder-gray-500 dark:placeholder-gray-400 p-0 focus:ring-0 focus-visible:ring-0"
                 onChange={(e) => setQuery(e.target.value)}
+                onKeyUp={handleKeyPress}
               />
               <button
                 aria-label="Close search"

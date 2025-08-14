@@ -85,7 +85,7 @@ const PlaylistDetailsPage = () => {
     id: "485956",
     page: 1,
   });
-  console.log(songsData);
+
   // Reset pagination when playlist changes
   useEffect(() => {
     setCurrentPage(1);
@@ -146,11 +146,11 @@ const PlaylistDetailsPage = () => {
   }, [allSongs, dispatch]);
 
   // Check for auto-play on mount
-  console.log(router);
+
   useEffect(() => {
     const shouldAutoPlay = autoPlay === "true";
     if (shouldAutoPlay && allSongs.length > 0) {
-      console.log("Auto-playing playlist");
+   
       handlePlayPlaylist(true);
 
       // Update URL to set autoPlay to false
@@ -175,10 +175,7 @@ const PlaylistDetailsPage = () => {
 
   const handlePlayPlaylist = (autoPlay = false) => {
     if (allSongs.length > 0) {
-      console.log("handlePlayPlaylist called", {
-        autoPlay,
-        songsLength: allSongs.length,
-      });
+
       dispatch(
         startPlaylist({
           songs: allSongs,

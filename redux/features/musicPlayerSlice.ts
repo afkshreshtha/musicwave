@@ -23,8 +23,12 @@ const musicPlayerSlice = createSlice({
     startPlaylist: (state, action) => {
       // Fixed: Properly destructure the payload and set the current song
       const { songs, startIndex = 0, autoPlay = false } = action.payload;
-      console.log('StartPlaylist reducer:', { songs: songs.length, startIndex, autoPlay });
-      
+      console.log("StartPlaylist reducer:", {
+        songs: songs.length,
+        startIndex,
+        autoPlay,
+      });
+
       state.queue = songs;
       state.currentSongIndex = startIndex;
       state.currentSong = songs[startIndex] || null;
@@ -37,30 +41,30 @@ const musicPlayerSlice = createSlice({
     playPause: (state) => {
       state.isPlaying = !state.isPlaying;
     },
-playSong: (state, action) => {
-  const song = action.payload;
-  const songIndex = state.queue.findIndex(
-    (queueSong) => queueSong.id === song.id
-  );
-  
-  if (songIndex !== -1) {
-    // Song is already in queue, just play it
-    const isDifferentSong = state.currentSong?.id !== song.id;
-    state.currentSongIndex = songIndex;
-    state.currentSong = state.queue[songIndex];
-    state.isPlaying = true;
-    if (isDifferentSong) {
-      state.currentTime = 0;
-    }
-  } else {
-    // Song is not in queue, add it and play it
-    state.queue = [song]; // Replace queue with single song
-    state.currentSongIndex = 0;
-    state.currentSong = song;
-    state.isPlaying = true;
-    state.currentTime = 0;
-  }
-},
+    playSong: (state, action) => {
+      const song = action.payload;
+      const songIndex = state.queue.findIndex(
+        (queueSong) => queueSong.id === song.id
+      );
+
+      if (songIndex !== -1) {
+        // Song is already in queue, just play it
+        const isDifferentSong = state.currentSong?.id !== song.id;
+        state.currentSongIndex = songIndex;
+        state.currentSong = state.queue[songIndex];
+        state.isPlaying = true;
+        if (isDifferentSong) {
+          state.currentTime = 0;
+        }
+      } else {
+        // Song is not in queue, add it and play it
+        state.queue = [song]; // Replace queue with single song
+        state.currentSongIndex = 0;
+        state.currentSong = song;
+        state.isPlaying = true;
+        state.currentTime = 0;
+      }
+    },
     nextSong: (state) => {
       if (state.queue.length === 0) return;
 
@@ -123,13 +127,15 @@ playSong: (state, action) => {
     },
     removeFromQueue: (state, action) => {
       const songId = action.payload;
-      const songIndex = state.queue.findIndex(song => song.id === songId);
-      
+      const songIndex = state.queue.findIndex((song) => song.id === songId);
+
       if (songIndex !== -1) {
         if (songIndex === state.currentSongIndex) {
           if (state.queue.length > 1) {
-            const nextIndex = songIndex < state.queue.length - 1 ? songIndex : 0;
-            state.currentSong = state.queue[nextIndex === songIndex ? 0 : nextIndex];
+            const nextIndex =
+              songIndex < state.queue.length - 1 ? songIndex : 0;
+            state.currentSong =
+              state.queue[nextIndex === songIndex ? 0 : nextIndex];
             state.currentSongIndex = nextIndex === songIndex ? 0 : nextIndex;
           } else {
             state.currentSong = null;
@@ -139,7 +145,7 @@ playSong: (state, action) => {
         } else if (songIndex < state.currentSongIndex) {
           state.currentSongIndex -= 1;
         }
-        
+
         state.queue.splice(songIndex, 1);
       }
     },

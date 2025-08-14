@@ -122,9 +122,7 @@ const ArtistDetailPage = () => {
   const songs = songsData;
   const albums = albumsData; // Note: albums are in 'songs' property based on your API
 
-  console.log("Songs data:", songs);
-  console.log("Albums data:", albums);
-  console.log("Artist data:", artist);
+
 
   const { isPlaying, currentSong, queue } = useSelector(
     (state: RootState) => state.player
@@ -202,7 +200,7 @@ const ArtistDetailPage = () => {
 
       songsObserver.current = new IntersectionObserver((entries) => {
         if (entries[0].isIntersecting && songHasMore) {
-          console.log("Loading more songs, current page:", songCurrentPage);
+       
           setSongCurrentPage((prevPage) => prevPage + 1);
         }
       });
@@ -221,7 +219,7 @@ const ArtistDetailPage = () => {
 
       albumsObserver.current = new IntersectionObserver((entries) => {
         if (entries[0].isIntersecting && albumHasMore) {
-          console.log("Loading more albums, current page:", albumCurrentPage);
+        
           setAlbumCurrentPage((prevPage) => prevPage + 1);
         }
       });
@@ -264,10 +262,7 @@ const ArtistDetailPage = () => {
   // Your existing handler functions...
   const handlePlayArtistSongs = (autoPlay = false) => {
     if (songs.songs.length > 0) {
-      console.log("Playing artist songs", {
-        autoPlay,
-        songsCount: songs.songs.length,
-      });
+
       dispatch(
         startPlaylist({
           songs: songs.songs,
@@ -300,7 +295,7 @@ const ArtistDetailPage = () => {
 
   const handleFollowToggle = () => {
     setIsFollowing(!isFollowing);
-    console.log(isFollowing ? "Unfollowed" : "Followed", artist.name);
+ 
   };
 
   const handleShare = () => {

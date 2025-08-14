@@ -110,7 +110,50 @@ export const musicApi = createApi({
       },
     }),
 
-    getAlbumSearchResult: builder.query({}),
+    // Redux API - Fixed configuration
+    getSearchResult: builder.query({
+      query: ({ query, page = 1, activeTab }) =>
+        `/search/${activeTab}?query=${query}&page=${page}`,
+      transformResponse: (response) => {
+        const transformedData = {
+          ...response.data,
+          results: response.data.results?.map((track) => ({
+            ...track,
+            slug: createMusicSlug(track.name),
+            seoUrl: `/songs/${createMusicSlug(track.name)}`,
+          })),
+        };
+        return transformedData;
+      },
+      // Fixed: Use query and activeTab as cache key
+      serializeQueryArgs: ({ queryArgs }) => {
+        const { query, activeTab } = queryArgs;
+        return `${query}-${activeTab}`; // Cache by query and tab
+      },
+      merge: (currentCache, newItems, { arg }) => {
+        const { page } = arg;
+        if (page === 1) {
+          // Reset cache for new search or tab
+          return newItems;
+        }
+        // Merge new items with existing cache
+        return {
+          ...newItems,
+          results: [
+            ...(currentCache?.results || []),
+            ...(newItems?.results || []),
+          ],
+        };
+      },
+      forceRefetch: ({ currentArg, previousArg }) => {
+        // Fixed: Check for query, activeTab, or page changes
+        return (
+          currentArg?.query !== previousArg?.query ||
+          currentArg?.activeTab !== previousArg?.activeTab ||
+          currentArg?.page > (previousArg?.page || 1)
+        );
+      },
+    }),
 
     getAlbumById: builder.query({
       query: ({ id, page = 1 }) => `/albums?id=${id}&page=${page}`,
@@ -170,97 +213,99 @@ export const musicApi = createApi({
       },
     }),
 
-// In your musicApi.js
-getArtistSongsById: builder.query({
-  query: ({ id, page = 1, sortBy = 'popularity', sortOrder = 'desc' }) => 
-    `/artists/${id}/songs?page=${page}&sortBy=${sortBy}&sortOrder=${sortOrder}`,
-  transformResponse: (response) => {
-    const transformedData = {
-      ...response.data,
-      songs:
-        response.data.songs?.map((track) => ({
-          ...track,
-        })) ||
-        response.data.results?.map((track) => ({
-          ...track,
-        })) ||
-        [],
-    };
-    return transformedData;
-  },
-  // Update cache key to include sort parameters
-  serializeQueryArgs: ({ queryArgs }) => {
-    const { id, sortBy, sortOrder } = queryArgs;
-    return `songs-${id}-${sortBy}-${sortOrder}`;
-  },
-  merge: (currentCache, newItems, { arg }) => {
-    const { page } = arg;
-    if (page === 1) {
-      // Reset cache for first page (new sort)
-      return newItems;
-    }
-    // Merge new songs with existing cache
-    return {
-      ...newItems,
-      songs: [...(currentCache?.songs || []), ...(newItems?.songs || [])],
-      hasMore: newItems.hasMore !== false && newItems.songs?.length > 0,
-      total: newItems.total || currentCache?.total,
-    };
-  },
-  forceRefetch: ({ currentArg, previousArg }) => {
-    return (
-      currentArg?.id !== previousArg?.id ||
-      currentArg?.page !== previousArg?.page ||
-      currentArg?.sortBy !== previousArg?.sortBy ||
-      currentArg?.sortOrder !== previousArg?.sortOrder
-    );
-  },
-}),
+    // In your musicApi.js
+    getArtistSongsById: builder.query({
+      query: ({ id, page = 1, sortBy = "popularity", sortOrder = "desc" }) =>
+        `/artists/${id}/songs?page=${page}&sortBy=${sortBy}&sortOrder=${sortOrder}`,
+      transformResponse: (response) => {
+        const transformedData = {
+          ...response.data,
+          songs:
+            response.data.songs?.map((track) => ({
+              ...track,
+            })) ||
+            response.data.results?.map((track) => ({
+              ...track,
+            })) ||
+            [],
+        };
+        return transformedData;
+      },
+      // Update cache key to include sort parameters
+      serializeQueryArgs: ({ queryArgs }) => {
+        const { id, sortBy, sortOrder } = queryArgs;
+        return `songs-${id}-${sortBy}-${sortOrder}`;
+      },
+      merge: (currentCache, newItems, { arg }) => {
+        const { page } = arg;
+        if (page === 1) {
+          // Reset cache for first page (new sort)
+          return newItems;
+        }
+        // Merge new songs with existing cache
+        return {
+          ...newItems,
+          songs: [...(currentCache?.songs || []), ...(newItems?.songs || [])],
+          hasMore: newItems.hasMore !== false && newItems.songs?.length > 0,
+          total: newItems.total || currentCache?.total,
+        };
+      },
+      forceRefetch: ({ currentArg, previousArg }) => {
+        return (
+          currentArg?.id !== previousArg?.id ||
+          currentArg?.page !== previousArg?.page ||
+          currentArg?.sortBy !== previousArg?.sortBy ||
+          currentArg?.sortOrder !== previousArg?.sortOrder
+        );
+      },
+    }),
 
-getArtistAlbumsById: builder.query({
-  query: ({ id, page = 1, sortBy = 'popularity', sortOrder = 'desc' }) => 
-    `/artists/${id}/albums?page=${page}&sortBy=${sortBy}&sortOrder=${sortOrder}`,
-  transformResponse: (response) => {
-    const transformedData = {
-      ...response.data,
-      albums:
-        response.data.albums?.map((track) => ({
-          ...track,
-        })) ||
-        response.data.results?.map((track) => ({
-          ...track,
-        })) ||
-        [],
-    };
-    return transformedData;
-  },
-  // Update cache key to include sort parameters
-  serializeQueryArgs: ({ queryArgs }) => {
-    const { id, sortBy, sortOrder } = queryArgs;
-    return `albums-${id}-${sortBy}-${sortOrder}`;
-  },
-  merge: (currentCache, newItems, { arg }) => {
-    const { page } = arg;
-    if (page === 1) {
-      return newItems;
-    }
-    return {
-      ...newItems,
-      albums: [...(currentCache?.albums || []), ...(newItems?.albums || [])],
-      hasMore: newItems.hasMore !== false && newItems.albums?.length > 0,
-      total: newItems.total || currentCache?.total,
-    };
-  },
-  forceRefetch: ({ currentArg, previousArg }) => {
-    return (
-      currentArg?.id !== previousArg?.id ||
-      currentArg?.page !== previousArg?.page ||
-      currentArg?.sortBy !== previousArg?.sortBy ||
-      currentArg?.sortOrder !== previousArg?.sortOrder
-    );
-  },
-}),
-
+    getArtistAlbumsById: builder.query({
+      query: ({ id, page = 1, sortBy = "popularity", sortOrder = "desc" }) =>
+        `/artists/${id}/albums?page=${page}&sortBy=${sortBy}&sortOrder=${sortOrder}`,
+      transformResponse: (response) => {
+        const transformedData = {
+          ...response.data,
+          albums:
+            response.data.albums?.map((track) => ({
+              ...track,
+            })) ||
+            response.data.results?.map((track) => ({
+              ...track,
+            })) ||
+            [],
+        };
+        return transformedData;
+      },
+      // Update cache key to include sort parameters
+      serializeQueryArgs: ({ queryArgs }) => {
+        const { id, sortBy, sortOrder } = queryArgs;
+        return `albums-${id}-${sortBy}-${sortOrder}`;
+      },
+      merge: (currentCache, newItems, { arg }) => {
+        const { page } = arg;
+        if (page === 1) {
+          return newItems;
+        }
+        return {
+          ...newItems,
+          albums: [
+            ...(currentCache?.albums || []),
+            ...(newItems?.albums || []),
+          ],
+          hasMore: newItems.hasMore !== false && newItems.albums?.length > 0,
+          total: newItems.total || currentCache?.total,
+        };
+      },
+      forceRefetch: ({ currentArg, previousArg }) => {
+        return (
+          currentArg?.id !== previousArg?.id ||
+          currentArg?.page !== previousArg?.page ||
+          currentArg?.sortBy !== previousArg?.sortBy ||
+          currentArg?.sortOrder !== previousArg?.sortOrder
+        );
+      },
+    }),
 
     getSongById: builder.query({
       query: ({ id }) => `/songs/${id}`,
@@ -291,4 +336,5 @@ export const {
   useGetArtistByIdQuery,
   useGetArtistSongsByIdQuery,
   useGetArtistAlbumsByIdQuery,
+  useGetSearchResultQuery,
 } = musicApi;

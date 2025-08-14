@@ -32,7 +32,7 @@ const SongDetailPage = () => {
   const headerRef = useRef(null);
   const dispatch = useDispatch();
   const params = useParams()
-  console.log(slug);
+ 
 
   // Get song data using RTK Query
   const {
@@ -42,7 +42,7 @@ const SongDetailPage = () => {
   } = useGetSongByIdQuery({ id: slug });
 
   const song = songData?.data || {};
-  console.log(song);
+
 
   const { isPlaying, currentSong } = useSelector((state:RootState) => state.player);
   const songName = params.seoUrl; // "best-of-indipop-hindi"
@@ -99,7 +99,7 @@ const SongDetailPage = () => {
 
   const handlePlaySong = (autoPlay = false) => {
     if (song.id) {
-      console.log("handlePlaySong called", { autoPlay, songId: song.id });
+    
       dispatch(playSong(song));
       if (autoPlay && !isPlaying) {
         dispatch(playPause());
@@ -118,13 +118,13 @@ const SongDetailPage = () => {
   const handleLike = () => {
     setIsLiked(!isLiked);
     // Implement actual like API call here
-    console.log("Liked song:", song.id);
+
   };
 
   const handleAddToPlaylist = () => {
     setIsInPlaylist(!isInPlaylist);
     // Implement add to playlist functionality
-    console.log("Added to playlist:", song.id);
+ 
   };
 
   const handleShare = () => {

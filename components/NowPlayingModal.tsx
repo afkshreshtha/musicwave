@@ -2,6 +2,7 @@
 "use client";
 
 import React from 'react';
+import Link from 'next/link';
 import { Heart, Share2, Download, MoreHorizontal, Shuffle, Repeat, SkipBack, SkipForward, Play, Pause } from 'lucide-react';
 import { useSelector, useDispatch } from 'react-redux';
 import { playPause, nextSong, previousSong, toggleShuffle, setRepeatMode } from '@/redux/features/musicPlayerSlice';
@@ -33,13 +34,38 @@ const NowPlayingModal = () => {
         <h1 className="text-xl xs:text-2xl sm:text-3xl font-bold text-gray-900 dark:text-white leading-tight">
           {currentSong.name}
         </h1>
-        <p className="text-base xs:text-lg text-gray-600 dark:text-gray-400">
-          {currentSong.artists?.primary?.map(artist => artist.name).join(', ') || 'Unknown Artist'}
-        </p>
+        
+        {/* Clickable Artist Names */}
+        <div className="text-base xs:text-lg text-gray-600 dark:text-gray-400">
+          {currentSong.artists?.primary?.length > 0 ? (
+            currentSong.artists.primary.map((artist, index) => (
+              <React.Fragment key={artist.id || index}>
+                <Link 
+                  href={`/artist/${artist.id || artist.name.toLowerCase().replace(/\s+/g, '-')}/${artist.name}/false/0`}
+                  className="hover:text-blue-500 dark:hover:text-blue-400 transition-colors duration-200 cursor-pointer"
+                >
+                  {artist.name}
+                </Link>
+                {index < currentSong.artists.primary.length - 1 && (
+                  <span className="mx-1">, </span>
+                )}
+              </React.Fragment>
+            ))
+          ) : (
+            <span>Unknown Artist</span>
+          )}
+        </div>
+
+        {/* Clickable Album Name */}
         {currentSong.album?.name && (
-          <p className="text-sm text-gray-500 dark:text-gray-500">
-            {currentSong.album.name}
-          </p>
+          <div className="text-sm text-gray-500 dark:text-gray-500">
+            <Link 
+              href={`/album/${currentSong.album.id }${currentSong.album.name.toLowerCase().replace(/\s+/g, '-')}}/false/0`}
+              className="hover:text-blue-500 dark:hover:text-blue-400 transition-colors duration-200 cursor-pointer"
+            >
+              {currentSong.album.name}
+            </Link>
+          </div>
         )}
       </div>
 

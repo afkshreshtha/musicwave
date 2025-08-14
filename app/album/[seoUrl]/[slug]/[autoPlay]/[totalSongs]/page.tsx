@@ -140,7 +140,7 @@ export default function AlbumPage() {
   useEffect(() => {
     const shouldAutoPlay = params.autoPlay === "true";
     if (shouldAutoPlay && allSongs.length > 0) {
-      console.log("Auto-playing album");
+   
       handlePlayAlbum(true);
     }
   }, [allSongs.length, params.autoPlay]);
@@ -159,10 +159,7 @@ export default function AlbumPage() {
 
   const handlePlayAlbum = (autoPlay = false) => {
     if (allSongs.length > 0) {
-      console.log("handlePlayAlbum called", {
-        autoPlay,
-        songsLength: allSongs.length,
-      });
+
       dispatch(
         startPlaylist({
           songs: allSongs,
