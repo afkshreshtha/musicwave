@@ -45,6 +45,7 @@ import {
 import Image from "next/image";
 import Queue from "@/components/queue";
 import { RootState } from "@/redux/store";
+import { downloadFileWithMetadata, downloadMP4WithMetadata } from "@/utils/download";
 
 const PlaylistDetailsPage = () => {
   const params = useParams();
@@ -77,14 +78,6 @@ const PlaylistDetailsPage = () => {
   const playlistName = params.seoUrl; // "best-of-indipop-hindi"
   const playlistId = params.slug; // "940775963"
   const autoPlay = params.autoPlay;
-  const {
-    data: songsData,
-    isLoading: songsLoading,
-    isFetching: songsFetching,
-  } = useGetArtistAlbumsByIdQuery({
-    id: "485956",
-    page: 1,
-  });
 
   // Reset pagination when playlist changes
   useEffect(() => {
@@ -100,6 +93,52 @@ const PlaylistDetailsPage = () => {
       setHasMore(currentResults < total && currentResults >= 10);
     }
   }, [playlist, totalSongs]);
+  function getFileExtension(url) {
+    if (!url || typeof url !== "string") return "mp4";
+
+    // Remove query params and hash fragments
+    const cleanUrl = url.split(/[?#]/)[0];
+
+    // Get the last path segment (filename)
+    const filename = cleanUrl.split("/").pop();
+
+    // Extract extension
+    if (!filename || !filename.includes(".")) return "mp4";
+
+    return filename.split(".").pop() || "mp4";
+  }
+
+  const resolveSongDownload = (song: any) => {
+    // adapt to your API shape: pick the highest quality or first valid URL
+    const url = song.downloadUrl?.[4]?.url || song.url || song.streamUrl;
+    console.log(song);
+    const safeName = `${song.name || "track"} - ${
+      song.artists?.primary?.[0]?.name || "unknown"
+    }`.replace(/[^\w\-\s\.\(\)\[\]]/g, "_");
+    console.log(safeName);
+    const ext = getFileExtension(url);
+    const filename = `${safeName}.mp4`;
+
+    return { url, filename };
+  };
+
+  const handleDownloadSong = async (song: any) => {
+    try {
+      const { url, filename } = resolveSongDownload(song);
+      if (!url) throw new Error("Download URL not available");
+      await downloadMP4WithMetadata(url, filename, {
+        title: "Sahiba",
+        artist: "Raghav Chaitanya",
+        album: "Animal",
+        year: "2023",
+        coverUrl:
+          "https://c.saavncdn.com/140/Sahiba-Hindi-2023-20231213191015-500x500.jpg",
+      });
+    } catch (e: any) {
+      console.error(e);
+      alert(e.message || "Failed to download track");
+    }
+  };
 
   // Intersection Observer for infinite scroll
   const lastElementRef = useCallback(
@@ -150,7 +189,6 @@ const PlaylistDetailsPage = () => {
   useEffect(() => {
     const shouldAutoPlay = autoPlay === "true";
     if (shouldAutoPlay && allSongs.length > 0) {
-   
       handlePlayPlaylist(true);
 
       // Update URL to set autoPlay to false
@@ -175,7 +213,6 @@ const PlaylistDetailsPage = () => {
 
   const handlePlayPlaylist = (autoPlay = false) => {
     if (allSongs.length > 0) {
-
       dispatch(
         startPlaylist({
           songs: allSongs,
@@ -700,12 +737,12 @@ const PlaylistDetailsPage = () => {
                           String(song.duration % 60).padStart(2, "0")
                         : "--:--"}
                     </span>
-                      <button
-                        onClick={() => handleLike(song.id)}
-                        className="p-1.5 rounded-full hover:bg-white/10 transition-colors duration-200 text-gray-400 hover:text-white opacity-100 md:opacity-0 md:group-hover:opacity-100"
-                      >
-                        <Heart className="w-4 h-4" />
-                      </button>
+                    <button
+                      onClick={() => handleLike(song.id)}
+                      className="p-1.5 rounded-full hover:bg-white/10 transition-colors duration-200 text-gray-400 hover:text-white opacity-100 md:opacity-0 md:group-hover:opacity-100"
+                    >
+                      <Heart className="w-4 h-4" />
+                    </button>
                   </div>
                 </div>
 
@@ -804,6 +841,14 @@ const PlaylistDetailsPage = () => {
                     >
                       <Heart className="w-4 h-4" />
                     </button>
+                    <button
+                      onClick={() => handleDownloadSong(song)}
+                      className="p-2 rounded-full hover:bg-white/10 transition-colors duration-200 text-gray-400 hover:text-white"
+                      title="Download"
+                    >
+                      <Download className="w-4 h-4" />
+                    </button>
+
                     <button className="p-2 rounded-full hover:bg-white/10 transition-colors duration-200 text-gray-400 hover:text-white">
                       <MoreHorizontal className="w-4 h-4" />
                     </button>
