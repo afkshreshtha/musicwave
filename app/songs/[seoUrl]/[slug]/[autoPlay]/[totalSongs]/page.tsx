@@ -20,16 +20,11 @@ import {
   Shuffle,
   Repeat,
   List,
-  X,
-  Trash2,
   Loader,
   ArrowLeft,
 } from "lucide-react";
 import { useParams, useRouter } from "next/navigation";
-import {
-  useGetArtistAlbumsByIdQuery,
-  useGetTracksByIdQuery,
-} from "@/redux/features/api/musicApi";
+import { useGetTracksByIdQuery } from "@/redux/features/api/musicApi";
 import { useDispatch, useSelector } from "react-redux";
 import {
   playPause,
@@ -49,6 +44,8 @@ import { downloadMP4WithMetadata } from "@/utils/download";
 import { useDownloadProgress } from "@/hooks/useDownloadProgress";
 import DownloadProgress from "@/components/DownloadProgress";
 import SongActionsMenu from "@/components/SongActionsMenu";
+import { downloadPlaylistAsZip } from "@/utils/playlistDownload";
+import PlaylistDownloadProgress from "@/components/playlistDownloadProgress";
 interface Song {
   id: string;
   name: string;
@@ -70,13 +67,17 @@ const PlaylistDetailsPage = () => {
   const observerRef = useRef(null);
   const dispatch = useDispatch();
   const {
-    downloads,
     startDownload,
     updateProgress,
     setError,
     completeDownload,
     cancelDownload,
     getDownloadState,
+    completePlaylistDownload,
+    startPlaylistDownload,
+    cancelPlaylistDownload,
+    updatePlaylistProgress,
+    playlistDownload,
   } = useDownloadProgress();
   // Fetch data with current page
   const {
@@ -132,7 +133,6 @@ const PlaylistDetailsPage = () => {
   const resolveSongDownload = (song: Song) => {
     // adapt to your API shape: pick the highest quality or first valid URL
     const url = song.downloadUrl?.[4]?.url || song.url || song.streamUrl;
-    console.log(song);
     const safeName = `${song.name || "track"} - ${
       song.artists?.primary?.[0]?.name || "unknown"
     }`.replace(/[^\w\-\s\.\(\)\[\]]/g, "_");
@@ -172,6 +172,36 @@ const PlaylistDetailsPage = () => {
     } catch (e) {
       console.error(e);
       setError(song.id, e.message || "Failed to download track");
+    }
+  };
+  const handleDownloadPlaylist = async () => {
+    console.log("🎯 handleDownloadPlaylist called");
+    console.log("🎵 allSongs.length:", allSongs.length);
+
+    if (!allSongs.length) return;
+
+    try {
+      console.log("🚀 About to call startPlaylistDownload");
+      startPlaylistDownload(); // Make sure this is called
+      console.log("✅ startPlaylistDownload called");
+
+      // Use sequential downloads (one by one)
+      const { errors } = await downloadPlaylistAsZip(
+        allSongs,
+        playlist?.name || "Playlist",
+        (progress) => {
+          console.log("📊 Progress callback received:", progress);
+          updatePlaylistProgress({
+            ...progress,
+            isDownloading: true,
+          });
+        }
+      );
+
+      completePlaylistDownload(errors);
+    } catch (error) {
+      console.error("Playlist download failed:", error);
+      cancelPlaylistDownload();
     }
   };
 
@@ -396,7 +426,7 @@ const PlaylistDetailsPage = () => {
       </div>
     );
   }
-
+  console.log(playlistDownload);
   return (
     <div className="min-h-screen bg-gradient-to-b from-gray-900 via-gray-800 to-black text-white relative overflow-hidden">
       {/* Background Effects */}
@@ -611,10 +641,64 @@ const PlaylistDetailsPage = () => {
                     <Share2 className="w-4 h-4 md:w-5 md:h-5" />
                   </button>
 
-                  <button className="p-2 md:p-3 rounded-full bg-white/10 hover:bg-white/20 transition-colors duration-300">
-                    <Download className="w-4 h-4 md:w-5 md:h-5" />
+                  <button
+                    onClick={handleDownloadPlaylist}
+                    disabled={
+                      playlistDownload.isDownloading || allSongs.length === 0
+                    }
+                    className={`
+    relative flex items-center justify-center gap-2 md:gap-3 
+    px-4 md:px-6 py-3 md:py-3.5 
+    rounded-full font-semibold text-sm md:text-base 
+    transition-all duration-300 
+    min-w-[140px] md:min-w-[160px]
+    ${
+      playlistDownload.isDownloading
+        ? "bg-gradient-to-r from-blue-600 to-cyan-600 cursor-not-allowed"
+        : "bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-500 hover:to-emerald-500 hover:scale-105"
+    }
+    ${allSongs.length === 0 ? "opacity-50 cursor-not-allowed" : ""}
+    shadow-lg shadow-green-500/25
+    active:scale-95 md:active:scale-105
+    touch-manipulation
+  `}
+                  >
+                    {playlistDownload.isDownloading ? (
+                      <>
+                        <div className="w-4 h-4 md:w-5 md:h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                        <span className="font-medium">
+                          {playlistDownload.currentSong &&
+                          playlistDownload.totalSongs
+                            ? `${playlistDownload.currentSong}/${playlistDownload.totalSongs}`
+                            : "Downloading..."}
+                        </span>
+                      </>
+                    ) : (
+                      <>
+                        <Download className="w-4 h-4 md:w-5 md:h-5" />
+                        <span>Download All</span>
+                        {allSongs.length > 0 && (
+                          <span className="text-xs opacity-75">
+                            ({allSongs.length})
+                          </span>
+                        )}
+                      </>
+                    )}
+                    3
                   </button>
-
+                  <PlaylistDownloadProgress
+                    isVisible={playlistDownload.isDownloading}
+                    currentSong={playlistDownload.currentSong || 0}
+                    totalSongs={playlistDownload.totalSongs || 0}
+                    currentSongProgress={
+                      playlistDownload.currentSongProgress || 0
+                    }
+                    currentSongStatus={playlistDownload.currentSongStatus || ""}
+                    overallProgress={playlistDownload.overallProgress || 0}
+                    currentSongName={playlistDownload.currentSongName || ""}
+                    errors={playlistDownload.errors || []}
+                    onCancel={cancelPlaylistDownload}
+                  />
                   <button className="p-2 md:p-3 rounded-full bg-white/10 hover:bg-white/20 transition-colors duration-300">
                     <MoreHorizontal className="w-4 h-4 md:w-5 md:h-5" />
                   </button>
