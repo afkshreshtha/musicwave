@@ -22,6 +22,7 @@ import {
   List,
   Loader,
   ArrowLeft,
+  X,
 } from "lucide-react";
 import { useParams, useRouter } from "next/navigation";
 import { useGetTracksByIdQuery } from "@/redux/features/api/musicApi";
@@ -57,11 +58,75 @@ interface Song {
   image?: string;
   duration?: number;
 }
+
+// Add this component inside your PlaylistDetailsPage or as a separate file
+const MinimizedProgressIndicator = ({
+  playlistDownload,
+  onExpand,
+
+}) => {
+  if (!playlistDownload.isDownloading) return null;
+
+  return (
+    <div className="fixed top-20  md:top-20 right-4 z-50"> {/* Fixed positioning too */}
+      <div className="bg-gray-900 border border-white/20 rounded-2xl shadow-2xl p-4 min-w-[280px] backdrop-blur-sm">
+        <div className="flex items-center gap-3">
+          {/* Progress Circle */}
+          <div className="relative w-10 h-10 flex-shrink-0">
+            <svg className="w-10 h-10 transform -rotate-90" viewBox="0 0 36 36">
+              <path
+                className="stroke-gray-600"
+                d="m18,2.0845 a 15.9155,15.9155 0 0,1 0,31.831 a 15.9155,15.9155 0 0,1 0,-31.831"
+                fill="none"
+                strokeWidth="2"
+              />
+              <path
+                className="stroke-purple-500"
+                d="m18,2.0845 a 15.9155,15.9155 0 0,1 0,31.831 a 15.9155,15.9155 0 0,1 0,-31.831"
+                fill="none"
+                strokeWidth="2"
+                strokeDasharray={`${playlistDownload.overallProgress}, 100`}
+                strokeLinecap="round"
+              />
+            </svg>
+            <Download className="w-5 h-5 text-purple-400 absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2" />
+          </div>
+
+          {/* Progress Info */}
+          <div className="flex-1 min-w-0" onClick={onExpand}>
+            <div className="flex items-center justify-between mb-1">
+              <p className="text-white text-sm font-medium cursor-pointer">
+                Downloading Playlist
+              </p>
+              <span className="text-xs text-purple-400 bg-purple-600/20 px-2 py-1 rounded-full">
+                {playlistDownload.currentSong}/{playlistDownload.totalSongs}
+              </span>
+            </div>
+            <div className="flex items-center justify-between">
+              <p className="text-xs text-gray-400 truncate cursor-pointer">
+                {playlistDownload.currentSongName || "Processing..."}
+              </p>
+              <span className="text-xs text-gray-400">
+                {Math.round(playlistDownload.overallProgress)}%
+              </span>
+            </div>
+          </div>
+
+          {/* Close Button - ADD THIS! */}
+
+        </div>
+      </div>
+    </div>
+  );
+};
+
+
 const PlaylistDetailsPage = () => {
   const params = useParams();
   const router = useRouter();
   const [scrolled, setScrolled] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
+  const [showProgressDialog, setShowProgressDialog] = useState(false);
   const [hasMore, setHasMore] = useState(true);
   const headerRef = useRef(null);
   const observerRef = useRef(null);
@@ -79,6 +144,11 @@ const PlaylistDetailsPage = () => {
     updatePlaylistProgress,
     playlistDownload,
   } = useDownloadProgress();
+  useEffect(() => {
+    if (playlistDownload.isDownloading && !showProgressDialog) {
+      setShowProgressDialog(true);
+    }
+  }, [playlistDownload.isDownloading]);
   // Fetch data with current page
   const {
     data: playlist,
@@ -174,6 +244,7 @@ const PlaylistDetailsPage = () => {
       setError(song.id, e.message || "Failed to download track");
     }
   };
+
   const handleDownloadPlaylist = async () => {
     console.log("🎯 handleDownloadPlaylist called");
     console.log("🎵 allSongs.length:", allSongs.length);
@@ -182,10 +253,10 @@ const PlaylistDetailsPage = () => {
 
     try {
       console.log("🚀 About to call startPlaylistDownload");
-      startPlaylistDownload(); // Make sure this is called
+      startPlaylistDownload();
+      setShowProgressDialog(true); // Show dialog when starting
       console.log("✅ startPlaylistDownload called");
 
-      // Use sequential downloads (one by one)
       const { errors } = await downloadPlaylistAsZip(
         allSongs,
         playlist?.name || "Playlist",
@@ -199,9 +270,11 @@ const PlaylistDetailsPage = () => {
       );
 
       completePlaylistDownload(errors);
+      // Don't auto-close dialog, let user close it
     } catch (error) {
       console.error("Playlist download failed:", error);
       cancelPlaylistDownload();
+      setShowProgressDialog(false);
     }
   };
 
@@ -669,7 +742,7 @@ const PlaylistDetailsPage = () => {
                         <span className="font-medium">
                           {playlistDownload.currentSong &&
                           playlistDownload.totalSongs
-                            ? `${playlistDownload.currentSong}/${playlistDownload.totalSongs}`
+                            ? `Downloading...`
                             : "Downloading..."}
                         </span>
                       </>
@@ -684,10 +757,11 @@ const PlaylistDetailsPage = () => {
                         )}
                       </>
                     )}
-                    3
                   </button>
                   <PlaylistDownloadProgress
-                    isVisible={playlistDownload.isDownloading}
+                    isVisible={
+                      showProgressDialog && playlistDownload.isDownloading
+                    }
                     currentSong={playlistDownload.currentSong || 0}
                     totalSongs={playlistDownload.totalSongs || 0}
                     currentSongProgress={
@@ -697,8 +771,21 @@ const PlaylistDetailsPage = () => {
                     overallProgress={playlistDownload.overallProgress || 0}
                     currentSongName={playlistDownload.currentSongName || ""}
                     errors={playlistDownload.errors || []}
-                    onCancel={cancelPlaylistDownload}
+                    onClose={() => setShowProgressDialog(false)} // Just minimize
+                    onCancel={() => {
+                      cancelPlaylistDownload();
+                      setShowProgressDialog(false);
+                    }} // Actually cancel
                   />
+                  <MinimizedProgressIndicator
+                    playlistDownload={playlistDownload}
+                    onExpand={() => setShowProgressDialog(true)}
+                    onCancel={() => {
+                      cancelPlaylistDownload();
+                      setShowProgressDialog(false);
+                    }}
+                  />
+
                   <button className="p-2 md:p-3 rounded-full bg-white/10 hover:bg-white/20 transition-colors duration-300">
                     <MoreHorizontal className="w-4 h-4 md:w-5 md:h-5" />
                   </button>

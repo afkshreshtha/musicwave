@@ -1,6 +1,6 @@
 // components/PlaylistDownloadProgress.tsx
-import React from 'react';
-import { X, Download, AlertCircle, CheckCircle } from 'lucide-react';
+import React from "react";
+import { X, Download, AlertCircle, CheckCircle, Minus } from "lucide-react";
 
 interface PlaylistDownloadProgressProps {
   isVisible: boolean;
@@ -11,6 +11,7 @@ interface PlaylistDownloadProgressProps {
   overallProgress: number;
   currentSongName: string;
   errors: Array<{ song: string; error: string }>;
+  onClose: () => void;
   onCancel: () => void;
 }
 
@@ -23,20 +24,27 @@ const PlaylistDownloadProgress: React.FC<PlaylistDownloadProgressProps> = ({
   overallProgress,
   currentSongName,
   errors,
-  onCancel
+  onClose,
+  onCancel,
 }) => {
   if (!isVisible) return null;
-  console.log(totalSongs)
 
   const getStatusText = (status: string) => {
     switch (status) {
-      case 'fetching': return 'Fetching audio...';
-      case 'converting': return 'Converting to MP3...';
-      case 'tagging': return 'Adding metadata...';
-      case 'finalizing': return 'Finalizing...';
-      case 'complete': return 'Complete';
-      case 'creating_zip': return 'Creating ZIP file...';
-      default: return 'Processing...';
+      case "fetching":
+        return "Fetching audio...";
+      case "converting":
+        return "Converting to MP3...";
+      case "tagging":
+        return "Adding metadata...";
+      case "finalizing":
+        return "Finalizing...";
+      case "complete":
+        return "Complete";
+      case "creating_zip":
+        return "Creating ZIP file...";
+      default:
+        return "Processing...";
     }
   };
 
@@ -58,14 +66,19 @@ const PlaylistDownloadProgress: React.FC<PlaylistDownloadProgressProps> = ({
               </p>
             </div>
           </div>
-          <button
-            onClick={onCancel}
-            className="p-2 rounded-full hover:bg-white/10 transition-colors touch-manipulation"
-          >
-            <X className="w-5 h-5 text-gray-400" />
-          </button>
+  
+          <div className="flex gap-2">
+            <button
+              onClick={onClose}
+              className="bg-blue-500/20 p-2 rounded-full hover:bg-white/10 transition-colors touch-manipulation"
+              title="Minimize"
+            >
+              <Minus className="w-5 h-5 text-gray-400" />
+            </button>
+          </div>
         </div>
 
+        {/* Rest of your component remains the same */}
         {/* Progress Card */}
         <div className="bg-gray-800/50 rounded-xl p-4 mb-4">
           {/* Overall Progress */}
@@ -84,7 +97,7 @@ const PlaylistDownloadProgress: React.FC<PlaylistDownloadProgressProps> = ({
               </div>
             </div>
             <div className="w-full bg-gray-700 rounded-full h-2">
-              <div 
+              <div
                 className="bg-gradient-to-r from-purple-600 to-pink-600 h-2 rounded-full transition-all duration-500"
                 style={{ width: `${overallProgress}%` }}
               />
@@ -92,38 +105,41 @@ const PlaylistDownloadProgress: React.FC<PlaylistDownloadProgressProps> = ({
           </div>
 
           {/* Current Song Progress */}
-          {currentSongStatus !== 'complete' && currentSongName !== 'Creating ZIP file...' && (
-            <div className="border-t border-gray-700 pt-4">
-              <div className="flex justify-between items-start mb-2">
-                <div className="flex-1 min-w-0 pr-2">
-                  <p className="text-sm text-white truncate font-medium">
-                    {currentSongName}
-                  </p>
-                  <p className="text-xs text-gray-400 mt-1">
-                    {getStatusText(currentSongStatus)}
-                  </p>
+          {currentSongStatus !== "complete" &&
+            currentSongName !== "Creating ZIP file..." && (
+              <div className="border-t border-gray-700 pt-4">
+                <div className="flex justify-between items-start mb-2">
+                  <div className="flex-1 min-w-0 pr-2">
+                    <p className="text-sm text-white truncate font-medium">
+                      {currentSongName}
+                    </p>
+                    <p className="text-xs text-gray-400 mt-1">
+                      {getStatusText(currentSongStatus)}
+                    </p>
+                  </div>
+                  <span className="text-xs text-gray-400 bg-gray-700 px-2 py-1 rounded">
+                    {Math.round(currentSongProgress)}%
+                  </span>
                 </div>
-                <span className="text-xs text-gray-400 bg-gray-700 px-2 py-1 rounded">
-                  {Math.round(currentSongProgress)}%
-                </span>
+                <div className="w-full bg-gray-700 rounded-full h-1.5">
+                  <div
+                    className="bg-gradient-to-r from-blue-500 to-cyan-500 h-1.5 rounded-full transition-all duration-300"
+                    style={{ width: `${currentSongProgress}%` }}
+                  />
+                </div>
               </div>
-              <div className="w-full bg-gray-700 rounded-full h-1.5">
-                <div 
-                  className="bg-gradient-to-r from-blue-500 to-cyan-500 h-1.5 rounded-full transition-all duration-300"
-                  style={{ width: `${currentSongProgress}%` }}
-                />
-              </div>
-            </div>
-          )}
+            )}
         </div>
 
         {/* ZIP Creation Status */}
-        {currentSongName === 'Creating ZIP file...' && (
+        {currentSongName === "Creating ZIP file..." && (
           <div className="bg-blue-600/10 border border-blue-600/20 rounded-xl p-4 mb-4">
             <div className="flex items-center gap-3">
               <div className="w-6 h-6 border-2 border-blue-500/30 border-t-blue-500 rounded-full animate-spin" />
               <div>
-                <p className="text-sm font-medium text-blue-400">Creating ZIP file...</p>
+                <p className="text-sm font-medium text-blue-400">
+                  Creating ZIP file...
+                </p>
                 <p className="text-xs text-gray-400">Almost done!</p>
               </div>
             </div>
@@ -155,7 +171,7 @@ const PlaylistDownloadProgress: React.FC<PlaylistDownloadProgressProps> = ({
         )}
 
         {/* Complete Status */}
-        {currentSongStatus === 'complete' && (
+        {currentSongStatus === "complete" && (
           <div className="bg-green-600/10 border border-green-600/20 rounded-xl p-4">
             <div className="flex items-center gap-3">
               <CheckCircle className="w-5 h-5 text-green-400" />
@@ -164,7 +180,8 @@ const PlaylistDownloadProgress: React.FC<PlaylistDownloadProgressProps> = ({
                   Download Complete!
                 </p>
                 <p className="text-xs text-gray-400">
-                  {totalSongs - errors.length}/{totalSongs} songs downloaded successfully
+                  {totalSongs - errors.length}/{totalSongs} songs downloaded
+                  successfully
                 </p>
               </div>
             </div>
@@ -174,6 +191,5 @@ const PlaylistDownloadProgress: React.FC<PlaylistDownloadProgressProps> = ({
     </div>
   );
 };
-
 
 export default PlaylistDownloadProgress;
