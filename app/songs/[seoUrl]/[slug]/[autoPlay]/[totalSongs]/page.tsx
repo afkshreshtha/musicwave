@@ -45,10 +45,13 @@ import {
 import Image from "next/image";
 import Queue from "@/components/queue";
 import { RootState } from "@/redux/store";
-import { downloadFileWithMetadata, downloadMP4WithMetadata } from "@/utils/download";
+import { downloadMP4WithMetadata } from "@/utils/download";
+import { useDownloadProgress } from "@/hooks/useDownloadProgress";
+import DownloadProgress from "@/components/DownloadProgress";
+import SongActionsMenu from "@/components/SongActionsMenu";
 interface Song {
   id: string;
-  title: string;
+  name: string;
   artist: string;
   album?: string;
   year?: string;
@@ -66,7 +69,15 @@ const PlaylistDetailsPage = () => {
   const headerRef = useRef(null);
   const observerRef = useRef(null);
   const dispatch = useDispatch();
-
+  const {
+    downloads,
+    startDownload,
+    updateProgress,
+    setError,
+    completeDownload,
+    cancelDownload,
+    getDownloadState,
+  } = useDownloadProgress();
   // Fetch data with current page
   const {
     data: playlist,
@@ -127,26 +138,40 @@ const PlaylistDetailsPage = () => {
     }`.replace(/[^\w\-\s\.\(\)\[\]]/g, "_");
     console.log(safeName);
     const ext = getFileExtension(url);
-    const filename = `${safeName}.mp4`;
+    const filename = `${safeName}`;
 
     return { url, filename };
   };
 
-  const handleDownloadSong = async (song:Song) => {
+  const handleDownloadSong = async (song: Song) => {
     try {
       const { url, filename } = resolveSongDownload(song);
       if (!url) throw new Error("Download URL not available");
-      await downloadMP4WithMetadata(url, filename, {
-        title: "Sahiba",
-        artist: "Raghav Chaitanya",
-        album: "Animal",
-        year: "2023",
-        coverUrl:
-          "https://c.saavncdn.com/140/Sahiba-Hindi-2023-20231213191015-500x500.jpg",
-      });
+
+      // Start the download progress tracking
+      startDownload(song.id);
+
+      await downloadMP4WithMetadata(
+        url,
+        filename,
+        {
+          title: song.name || "Unknown Title",
+          artist: song.artists?.primary?.[0]?.name || "Unknown Artist",
+          album: song?.album?.name,
+          year: song?.year,
+          coverUrl: song.image?.[1]?.url || "/placeholder-album.jpg",
+        },
+        // Add progress callback
+        (progress, status) => {
+          updateProgress(song.id, progress, status as any);
+        }
+      );
+
+      // Mark as complete
+      completeDownload(song.id);
     } catch (e) {
       console.error(e);
-      alert(e.message || "Failed to download track");
+      setError(song.id, e.message || "Failed to download track");
     }
   };
 
@@ -738,24 +763,54 @@ const PlaylistDetailsPage = () => {
                     </p>
                   </div>
 
-                  {/* Duration & Actions */}
-                  <div className="flex items-center gap-2">
-                    <span className="text-xs text-gray-400">
+                  {/* Actions - Always Visible on Mobile */}
+                  <div className="flex items-center gap-1">
+                    {/* Duration */}
+                    <span className="text-xs text-gray-400 mr-1">
                       {song.duration
                         ? Math.floor(song.duration / 60) +
                           ":" +
                           String(song.duration % 60).padStart(2, "0")
                         : "--:--"}
                     </span>
+
+                    {/* Download Button - Always Visible */}
+                    <div className="min-w-[80px]">
+                      {getDownloadState(song.id) ? (
+                        <DownloadProgress
+                          progress={getDownloadState(song.id).progress}
+                          status={getDownloadState(song.id).status}
+                          error={getDownloadState(song.id).error}
+                          onCancel={() => cancelDownload(song.id)}
+                          isMobile={true}
+                        />
+                      ) : (
+                        <button
+                          onClick={() => handleDownloadSong(song)}
+                          className="p-1.5 rounded-full bg-white/10 hover:bg-white/20 active:bg-white/30 transition-colors duration-200 text-gray-300 hover:text-white"
+                          title="Download"
+                        >
+                          <Download className="w-3.5 h-3.5" />
+                        </button>
+                      )}
+                    </div>
+
+                    {/* More Actions Menu */}
                     <button
-                      onClick={() => handleLike(song.id)}
-                      className="p-1.5 rounded-full hover:bg-white/10 transition-colors duration-200 text-gray-400 hover:text-white opacity-100 md:opacity-0 md:group-hover:opacity-100"
+                      onClick={() => {
+                        // You can implement a bottom sheet or dropdown menu here
+                        // For now, just show basic actions
+                        const actions = ["Like", "Share", "Add to Queue"];
+                        // Implement your action menu logic
+                      }}
+                      className="p-1.5 rounded-full hover:bg-white/10 transition-colors duration-200 text-gray-400 hover:text-white"
                     >
-                      <Heart className="w-4 h-4" />
+                      <MoreHorizontal className="w-3.5 h-3.5" />
                     </button>
                   </div>
                 </div>
 
+                {/* Desktop Layout */}
                 {/* Desktop Layout */}
                 <div className="hidden md:grid grid-cols-12 gap-4 items-center p-3">
                   {/* Track Number / Play Button */}
@@ -843,25 +898,15 @@ const PlaylistDetailsPage = () => {
                       : "--:--"}
                   </div>
 
-                  {/* Actions */}
-                  <div className="col-span-1 flex items-center justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
-                    <button
-                      onClick={() => handleLike(song.id)}
-                      className="p-2 rounded-full hover:bg-white/10 transition-colors duration-200 text-gray-400 hover:text-white"
-                    >
-                      <Heart className="w-4 h-4" />
-                    </button>
-                    <button
-                      onClick={() => handleDownloadSong(song)}
-                      className="p-2 rounded-full hover:bg-white/10 transition-colors duration-200 text-gray-400 hover:text-white"
-                      title="Download"
-                    >
-                      <Download className="w-4 h-4" />
-                    </button>
-
-                    <button className="p-2 rounded-full hover:bg-white/10 transition-colors duration-200 text-gray-400 hover:text-white">
-                      <MoreHorizontal className="w-4 h-4" />
-                    </button>
+                  {/* Actions - Only Three Dots Menu */}
+                  <div className="col-span-1 flex items-center justify-end">
+                    <SongActionsMenu
+                      song={song}
+                      onLike={() => handleLike(song.id)}
+                      onDownload={() => handleDownloadSong(song)}
+                      downloadState={getDownloadState(song.id)}
+                      onCancelDownload={() => cancelDownload(song.id)}
+                    />
                   </div>
                 </div>
               </div>
