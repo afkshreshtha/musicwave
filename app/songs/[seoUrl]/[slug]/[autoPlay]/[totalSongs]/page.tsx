@@ -144,7 +144,7 @@ const PlaylistDetailsPage = () => {
         coverUrl:
           "https://c.saavncdn.com/140/Sahiba-Hindi-2023-20231213191015-500x500.jpg",
       });
-    } catch (e: any) {
+    } catch (e) {
       console.error(e);
       alert(e.message || "Failed to download track");
     }
