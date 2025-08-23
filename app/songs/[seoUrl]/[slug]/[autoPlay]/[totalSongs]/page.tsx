@@ -46,7 +46,17 @@ import Image from "next/image";
 import Queue from "@/components/queue";
 import { RootState } from "@/redux/store";
 import { downloadFileWithMetadata, downloadMP4WithMetadata } from "@/utils/download";
-
+interface Song {
+  id: string;
+  title: string;
+  artist: string;
+  album?: string;
+  year?: string;
+  url?: string;
+  downloadUrl?: string;
+  image?: string;
+  duration?: number;
+}
 const PlaylistDetailsPage = () => {
   const params = useParams();
   const router = useRouter();
@@ -108,7 +118,7 @@ const PlaylistDetailsPage = () => {
     return filename.split(".").pop() || "mp4";
   }
 
-  const resolveSongDownload = (song: any) => {
+  const resolveSongDownload = (song: Song) => {
     // adapt to your API shape: pick the highest quality or first valid URL
     const url = song.downloadUrl?.[4]?.url || song.url || song.streamUrl;
     console.log(song);
@@ -122,7 +132,7 @@ const PlaylistDetailsPage = () => {
     return { url, filename };
   };
 
-  const handleDownloadSong = async (song: any) => {
+  const handleDownloadSong = async (song:Song) => {
     try {
       const { url, filename } = resolveSongDownload(song);
       if (!url) throw new Error("Download URL not available");
