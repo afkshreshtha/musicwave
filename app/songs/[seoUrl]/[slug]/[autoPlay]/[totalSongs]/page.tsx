@@ -163,7 +163,7 @@ const PlaylistDetailsPage = () => {
         },
         // Add progress callback
         (progress, status) => {
-          updateProgress(song.id, progress, status as any);
+          updateProgress(song.id, progress, status);
         }
       );
 
