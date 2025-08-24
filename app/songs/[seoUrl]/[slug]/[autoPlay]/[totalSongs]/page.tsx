@@ -60,15 +60,13 @@ interface Song {
 }
 
 // Add this component inside your PlaylistDetailsPage or as a separate file
-const MinimizedProgressIndicator = ({
-  playlistDownload,
-  onExpand,
-
-}) => {
+const MinimizedProgressIndicator = ({ playlistDownload, onExpand }) => {
   if (!playlistDownload.isDownloading) return null;
 
   return (
-    <div className="fixed top-20  md:top-20 right-4 z-50"> {/* Fixed positioning too */}
+    <div className="fixed top-20  md:top-20 right-4 z-50">
+      {" "}
+      {/* Fixed positioning too */}
       <div className="bg-gray-900 border border-white/20 rounded-2xl shadow-2xl p-4 min-w-[280px] backdrop-blur-sm">
         <div className="flex items-center gap-3">
           {/* Progress Circle */}
@@ -113,13 +111,11 @@ const MinimizedProgressIndicator = ({
           </div>
 
           {/* Close Button - ADD THIS! */}
-
         </div>
       </div>
     </div>
   );
 };
-
 
 const PlaylistDetailsPage = () => {
   const params = useParams();
@@ -143,7 +139,9 @@ const PlaylistDetailsPage = () => {
     cancelPlaylistDownload,
     updatePlaylistProgress,
     playlistDownload,
+    clearDownloadState,
   } = useDownloadProgress();
+  
   useEffect(() => {
     if (playlistDownload.isDownloading && !showProgressDialog) {
       setShowProgressDialog(true);
@@ -946,42 +944,30 @@ const PlaylistDetailsPage = () => {
                     </span>
 
                     {/* Download Button - Always Visible */}
-                    <div className="min-w-[80px]">
+                    {/* Mobile Layout - Update the download section */}
+                    <div className="min-w-[90px] flex justify-end">
                       {getDownloadState(song.id) ? (
                         <DownloadProgress
                           progress={getDownloadState(song.id).progress}
                           status={getDownloadState(song.id).status}
                           error={getDownloadState(song.id).error}
                           onCancel={() => cancelDownload(song.id)}
+                          onComplete={() => clearDownloadState(song.id)} // Add this
                           isMobile={true}
                         />
                       ) : (
                         <button
                           onClick={() => handleDownloadSong(song)}
-                          className="p-1.5 rounded-full bg-white/10 hover:bg-white/20 active:bg-white/30 transition-colors duration-200 text-gray-300 hover:text-white"
+                          className="w-8 h-8 rounded-full bg-white/10 hover:bg-white/20 active:bg-white/30 transition-all duration-200 flex items-center justify-center text-gray-300 hover:text-white"
                           title="Download"
                         >
                           <Download className="w-3.5 h-3.5" />
                         </button>
                       )}
                     </div>
-
-                    {/* More Actions Menu */}
-                    <button
-                      onClick={() => {
-                        // You can implement a bottom sheet or dropdown menu here
-                        // For now, just show basic actions
-                        const actions = ["Like", "Share", "Add to Queue"];
-                        // Implement your action menu logic
-                      }}
-                      className="p-1.5 rounded-full hover:bg-white/10 transition-colors duration-200 text-gray-400 hover:text-white"
-                    >
-                      <MoreHorizontal className="w-3.5 h-3.5" />
-                    </button>
                   </div>
                 </div>
 
-                {/* Desktop Layout */}
                 {/* Desktop Layout */}
                 <div className="hidden md:grid grid-cols-12 gap-4 items-center p-3">
                   {/* Track Number / Play Button */}
@@ -1069,15 +1055,27 @@ const PlaylistDetailsPage = () => {
                       : "--:--"}
                   </div>
 
-                  {/* Actions - Only Three Dots Menu */}
-                  <div className="col-span-1 flex items-center justify-end">
-                    <SongActionsMenu
-                      song={song}
-                      onLike={() => handleLike(song.id)}
-                      onDownload={() => handleDownloadSong(song)}
-                      downloadState={getDownloadState(song.id)}
-                      onCancelDownload={() => cancelDownload(song.id)}
-                    />
+                  <div className="col-span-1 flex justify-center">
+                    <div className="min-w-[100px] flex justify-center">
+                      {getDownloadState(song.id) ? (
+                        <DownloadProgress
+                          progress={getDownloadState(song.id).progress}
+                          status={getDownloadState(song.id).status}
+                          error={getDownloadState(song.id).error}
+                          onCancel={() => cancelDownload(song.id)}
+                          onComplete={() => clearDownloadState(song.id)} // Add this
+                          isMobile={false}
+                        />
+                      ) : (
+                        <button
+                          onClick={() => handleDownloadSong(song)}
+                          className="w-9 h-9 rounded-full bg-white/10 hover:bg-white/20 hover:scale-105 active:scale-95 transition-all duration-200 flex items-center justify-center text-gray-300 hover:text-white"
+                          title="Download"
+                        >
+                          <Download className="w-4 h-4" />
+                        </button>
+                      )}
+                    </div>
                   </div>
                 </div>
               </div>

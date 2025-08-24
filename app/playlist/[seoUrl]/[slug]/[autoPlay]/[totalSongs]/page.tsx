@@ -44,13 +44,87 @@ import usePlaylist from "@/hooks/usePlaylist";
 import useQueue from "@/hooks/useQueue";
 import Queue from "@/components/queue";
 import { RootState } from "@/redux/store";
+import { useDownloadProgress } from "@/hooks/useDownloadProgress";
+import { downloadPlaylistAsZip } from "@/utils/playlistDownload";
+import { downloadMP4WithMetadata } from "@/utils/download";
+import PlaylistDownloadProgress from "@/components/playlistDownloadProgress";
+import DownloadProgress from "@/components/DownloadProgress";
+const MinimizedProgressIndicator = ({ playlistDownload, onExpand }) => {
+  if (!playlistDownload.isDownloading) return null;
 
+  return (
+    <div className="fixed top-20  md:top-20 right-4 z-50">
+      {" "}
+      {/* Fixed positioning too */}
+      <div className="bg-gray-900 border border-white/20 rounded-2xl shadow-2xl p-4 min-w-[280px] backdrop-blur-sm">
+        <div className="flex items-center gap-3">
+          {/* Progress Circle */}
+          <div className="relative w-10 h-10 flex-shrink-0">
+            <svg className="w-10 h-10 transform -rotate-90" viewBox="0 0 36 36">
+              <path
+                className="stroke-gray-600"
+                d="m18,2.0845 a 15.9155,15.9155 0 0,1 0,31.831 a 15.9155,15.9155 0 0,1 0,-31.831"
+                fill="none"
+                strokeWidth="2"
+              />
+              <path
+                className="stroke-purple-500"
+                d="m18,2.0845 a 15.9155,15.9155 0 0,1 0,31.831 a 15.9155,15.9155 0 0,1 0,-31.831"
+                fill="none"
+                strokeWidth="2"
+                strokeDasharray={`${playlistDownload.overallProgress}, 100`}
+                strokeLinecap="round"
+              />
+            </svg>
+            <Download className="w-5 h-5 text-purple-400 absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2" />
+          </div>
+
+          {/* Progress Info */}
+          <div className="flex-1 min-w-0" onClick={onExpand}>
+            <div className="flex items-center justify-between mb-1">
+              <p className="text-white text-sm font-medium cursor-pointer">
+                Downloading Playlist
+              </p>
+              <span className="text-xs text-purple-400 bg-purple-600/20 px-2 py-1 rounded-full">
+                {playlistDownload.currentSong}/{playlistDownload.totalSongs}
+              </span>
+            </div>
+            <div className="flex items-center justify-between">
+              <p className="text-xs text-gray-400 truncate cursor-pointer">
+                {playlistDownload.currentSongName || "Processing..."}
+              </p>
+              <span className="text-xs text-gray-400">
+                {Math.round(playlistDownload.overallProgress)}%
+              </span>
+            </div>
+          </div>
+
+          {/* Close Button - ADD THIS! */}
+        </div>
+      </div>
+    </div>
+  );
+};
 const SongDetails = () => {
-  const { slug, songcount,autoPlay } = useParams();
+  const { slug, songcount, autoPlay } = useParams();
   const router = useRouter();
   const [scrolled, setScrolled] = useState(false);
   const [page, setPage] = useState(1);
-
+  const [showProgressDialog, setShowProgressDialog] = useState(false);
+  const {
+    startDownload,
+    updateProgress,
+    setError,
+    completeDownload,
+    cancelDownload,
+    getDownloadState,
+    completePlaylistDownload,
+    startPlaylistDownload,
+    cancelPlaylistDownload,
+    updatePlaylistProgress,
+    playlistDownload,
+    clearDownloadState,
+  } = useDownloadProgress();
   const headerRef = useRef(null);
   const dispatch = useDispatch();
   const id = slug;
@@ -75,14 +149,14 @@ const SongDetails = () => {
     queue,
     isShuffleOn,
     repeatMode,
-  } = useSelector((state:RootState) => state.player);
+  } = useSelector((state: RootState) => state.player);
 
   // Utility function to decode HTML strings
   const decodeHTMLString = (str) => {
     const decodedString = str?.replace(/&quot;/g, '"');
     return decodedString;
   };
-const { showQueue, toggleQueueVisibility } = useQueue()
+  const { showQueue, toggleQueueVisibility } = useQueue();
   // Fixed: Renamed lastBookElementRef to lastElementRef for consistency
   const observer = useRef();
   const lastElementRef = useCallback(
@@ -99,6 +173,98 @@ const { showQueue, toggleQueueVisibility } = useQueue()
     },
     [loading, hasMore]
   );
+
+  function getFileExtension(url) {
+    if (!url || typeof url !== "string") return "mp4";
+
+    // Remove query params and hash fragments
+    const cleanUrl = url.split(/[?#]/)[0];
+
+    // Get the last path segment (filename)
+    const filename = cleanUrl.split("/").pop();
+
+    // Extract extension
+    if (!filename || !filename.includes(".")) return "mp4";
+
+    return filename.split(".").pop() || "mp4";
+  }
+  const resolveSongDownload = (song: Song) => {
+    // adapt to your API shape: pick the highest quality or first valid URL
+    const url = song.downloadUrl?.[4]?.url || song.url || song.streamUrl;
+    const safeName = `${song.name || "track"} - ${
+      song.artists?.primary?.[0]?.name || "unknown"
+    }`.replace(/[^\w\-\s\.\(\)\[\]]/g, "_");
+    console.log(safeName);
+    const ext = getFileExtension(url);
+    const filename = `${safeName}`;
+
+    return { url, filename };
+  };
+
+  const handleDownloadSong = async (song: Song) => {
+    try {
+      const { url, filename } = resolveSongDownload(song);
+      if (!url) throw new Error("Download URL not available");
+
+      // Start the download progress tracking
+      startDownload(song.id);
+
+      await downloadMP4WithMetadata(
+        url,
+        filename,
+        {
+          title: song.name || "Unknown Title",
+          artist: song.artists?.primary?.[0]?.name || "Unknown Artist",
+          album: song?.album?.name,
+          year: song?.year,
+          coverUrl: song.image?.[1]?.url || "/placeholder-album.jpg",
+        },
+        // Add progress callback
+        (progress, status) => {
+          updateProgress(song.id, progress, status);
+        }
+      );
+
+      // Mark as complete
+      completeDownload(song.id);
+    } catch (e) {
+      console.error(e);
+      setError(song.id, e.message || "Failed to download track");
+    }
+  };
+
+  const handleDownloadPlaylist = async () => {
+    console.log("🎯 handleDownloadPlaylist called");
+    console.log("🎵 allSongs.length:", allSongs.length);
+
+    if (!allSongs.length) return;
+
+    try {
+      console.log("🚀 About to call startPlaylistDownload");
+      startPlaylistDownload();
+      setShowProgressDialog(true); // Show dialog when starting
+      console.log("✅ startPlaylistDownload called");
+
+      const { errors } = await downloadPlaylistAsZip(
+        allSongs,
+        playlist?.name || "Playlist",
+        (progress) => {
+          console.log("📊 Progress callback received:", progress);
+          updatePlaylistProgress({
+            ...progress,
+            isDownloading: true,
+          });
+        }
+      );
+
+      completePlaylistDownload(errors);
+      // Don't auto-close dialog, let user close it
+    } catch (error) {
+      console.error("Playlist download failed:", error);
+      cancelPlaylistDownload();
+      setShowProgressDialog(false);
+    }
+  };
 
   // Memoize all songs for better performance
   const allSongs = useMemo(() => {
@@ -129,11 +295,9 @@ const { showQueue, toggleQueueVisibility } = useQueue()
   useEffect(() => {
     const shouldAutoPlay = autoPlay === "true";
     if (shouldAutoPlay && allSongs.length > 0) {
-    
       handlePlayPlaylist(true);
-
     }
-  }, [allSongs.length,autoPlay, router]);
+  }, [allSongs.length, autoPlay, router]);
 
   useEffect(() => {
     const handleScroll = () => {
@@ -150,7 +314,6 @@ const { showQueue, toggleQueueVisibility } = useQueue()
   // Fixed: Renamed function to match convention
   const handlePlayPlaylist = (autoPlay = false) => {
     if (allSongs.length > 0) {
-
       dispatch(
         startPlaylist({
           songs: allSongs,
@@ -183,28 +346,10 @@ const { showQueue, toggleQueueVisibility } = useQueue()
 
   const handleLike = (songId) => {
     // Implement like functionality
-  
-  };
-
-  const handleRemoveFromQueue = (songId) => {
-    dispatch(removeFromQueue(songId));
   };
 
   const handleShuffleToggle = () => {
     dispatch(toggleShuffle());
-  };
-  // Add this new function in your component
-  const handlePlayFromQueue = (song, queueIndex) => {
-    // Find the actual index in the queue array
-    const actualQueueIndex = currentSongIndex + 1 + queueIndex;
-
-    // Dispatch to play the selected song and update the current song index
-    dispatch(playSong(song));
-
-    // You might need to add a new action to set the current song index
-    // dispatch(setCurrentSongIndex(actualQueueIndex));
-
-
   };
 
   const handleRepeatToggle = () => {
@@ -550,10 +695,75 @@ const { showQueue, toggleQueueVisibility } = useQueue()
                       <Share2 className="w-4 h-4 md:w-5 md:h-5" />
                     </button>
 
-                    <button className="p-2 md:p-3 rounded-full bg-white/10 hover:bg-white/20 transition-colors duration-300">
-                      <Download className="w-4 h-4 md:w-5 md:h-5" />
+                    <button
+                      onClick={handleDownloadPlaylist}
+                      disabled={
+                        playlistDownload.isDownloading || allSongs.length === 0
+                      }
+                      className={`
+               relative flex items-center justify-center gap-2 md:gap-3 
+               px-4 md:px-6 py-3 md:py-3.5 
+               rounded-full font-semibold text-sm md:text-base 
+               transition-all duration-300 
+               min-w-[140px] md:min-w-[160px]
+               ${
+                 playlistDownload.isDownloading
+                   ? "bg-gradient-to-r from-blue-600 to-cyan-600 cursor-not-allowed"
+                   : "bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-500 hover:to-emerald-500 hover:scale-105"
+               }
+               ${allSongs.length === 0 ? "opacity-50 cursor-not-allowed" : ""}
+               shadow-lg shadow-green-500/25
+               active:scale-95 md:active:scale-105
+               touch-manipulation
+             `}
+                    >
+                      {playlistDownload.isDownloading ? (
+                        <>
+                          <div className="w-4 h-4 md:w-5 md:h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                          <span className="font-medium">
+                            {playlistDownload.currentSong &&
+                            playlistDownload.totalSongs
+                              ? `Downloading...`
+                              : "Downloading..."}
+                          </span>
+                        </>
+                      ) : (
+                        <>
+                          <Download className="w-4 h-4 md:w-5 md:h-5" />
+                          <span>Download All</span>
+                          {allSongs.length > 0 && (
+                            <span className="text-xs opacity-75">
+                              ({allSongs.length})
+                            </span>
+                          )}
+                        </>
+                      )}
                     </button>
-
+                    <PlaylistDownloadProgress
+                      isVisible={
+                        showProgressDialog && playlistDownload.isDownloading
+                      }
+                      currentSong={playlistDownload.currentSong || 0}
+                      totalSongs={playlistDownload.totalSongs || 0}
+                      currentSongProgress={
+                        playlistDownload.currentSongProgress || 0
+                      }
+                      currentSongStatus={
+                        playlistDownload.currentSongStatus || ""
+                      }
+                      overallProgress={playlistDownload.overallProgress || 0}
+                      currentSongName={playlistDownload.currentSongName || ""}
+                      errors={playlistDownload.errors || []}
+                      onClose={() => setShowProgressDialog(false)} // Just minimize
+                      onCancel={() => {
+                        cancelPlaylistDownload();
+                        setShowProgressDialog(false);
+                      }} // Actually cancel
+                    />
+                    <MinimizedProgressIndicator
+                      playlistDownload={playlistDownload}
+                      onExpand={() => setShowProgressDialog(true)}
+                    />
                     <button className="p-2 md:p-3 rounded-full bg-white/10 hover:bg-white/20 transition-colors duration-300">
                       <MoreHorizontal className="w-4 h-4 md:w-5 md:h-5" />
                     </button>
@@ -707,20 +917,38 @@ const { showQueue, toggleQueueVisibility } = useQueue()
                     </div>
 
                     {/* Duration & Actions */}
-                    <div className="flex items-center gap-2">
-                      <span className="text-xs text-gray-400">
+                    <div className="flex items-center gap-1">
+                      {/* Duration */}
+                      <span className="text-xs text-gray-400 mr-1">
                         {song.duration
                           ? Math.floor(song.duration / 60) +
                             ":" +
                             String(song.duration % 60).padStart(2, "0")
                           : "--:--"}
                       </span>
-                       <button
-                         onClick={() => handleLike(song.id)}
-                         className="p-1.5 rounded-full hover:bg-white/10 transition-colors duration-200 text-gray-400 hover:text-white opacity-100 md:opacity-0 md:group-hover:opacity-100"
-                       >
-                         <Heart className="w-4 h-4" />
-                       </button>
+
+                      {/* Download Button - Always Visible */}
+                      {/* Mobile Layout - Update the download section */}
+                      <div className="min-w-[90px] flex justify-end">
+                        {getDownloadState(song.id) ? (
+                          <DownloadProgress
+                            progress={getDownloadState(song.id).progress}
+                            status={getDownloadState(song.id).status}
+                            error={getDownloadState(song.id).error}
+                            onCancel={() => cancelDownload(song.id)}
+                            onComplete={() => clearDownloadState(song.id)} // Add this
+                            isMobile={true}
+                          />
+                        ) : (
+                          <button
+                            onClick={() => handleDownloadSong(song)}
+                            className="w-8 h-8 rounded-full bg-white/10 hover:bg-white/20 active:bg-white/30 transition-all duration-200 flex items-center justify-center text-gray-300 hover:text-white"
+                            title="Download"
+                          >
+                            <Download className="w-3.5 h-3.5" />
+                          </button>
+                        )}
+                      </div>
                     </div>
                   </div>
 
@@ -824,16 +1052,27 @@ const { showQueue, toggleQueueVisibility } = useQueue()
                     </div>
 
                     {/* Actions */}
-                    <div className="col-span-1 flex items-center justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
-                      <button
-                        onClick={() => handleLike(song.id)}
-                        className="p-2 rounded-full hover:bg-white/10 transition-colors duration-200 text-gray-400 hover:text-white"
-                      >
-                        <Heart className="w-4 h-4" />
-                      </button>
-                      <button className="p-2 rounded-full hover:bg-white/10 transition-colors duration-200 text-gray-400 hover:text-white">
-                        <MoreHorizontal className="w-4 h-4" />
-                      </button>
+                    <div className="col-span-1 flex justify-center">
+                      <div className="min-w-[100px] flex justify-center">
+                        {getDownloadState(song.id) ? (
+                          <DownloadProgress
+                            progress={getDownloadState(song.id).progress}
+                            status={getDownloadState(song.id).status}
+                            error={getDownloadState(song.id).error}
+                            onCancel={() => cancelDownload(song.id)}
+                            onComplete={() => clearDownloadState(song.id)} // Add this
+                            isMobile={false}
+                          />
+                        ) : (
+                          <button
+                            onClick={() => handleDownloadSong(song)}
+                            className="w-9 h-9 rounded-full bg-white/10 hover:bg-white/20 hover:scale-105 active:scale-95 transition-all duration-200 flex items-center justify-center text-gray-300 hover:text-white"
+                            title="Download"
+                          >
+                            <Download className="w-4 h-4" />
+                          </button>
+                        )}
+                      </div>
                     </div>
                   </div>
                 </div>

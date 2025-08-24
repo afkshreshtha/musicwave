@@ -85,6 +85,13 @@ export const useDownloadProgress = () => {
     });
   }, []);
 
+const clearDownloadState = (songId: string) => {
+  setDownloads(prev => {
+    const newDownloads = { ...prev };
+    delete newDownloads[songId];
+    return newDownloads;
+  });
+};
   const updatePlaylistProgress = useCallback((progress: PlaylistDownloadState) => {
     setPlaylistDownload(prev => ({ ...prev, ...progress }));
   }, []);
@@ -124,6 +131,7 @@ export const useDownloadProgress = () => {
     startPlaylistDownload,
     updatePlaylistProgress,
     completePlaylistDownload,
-    cancelPlaylistDownload
+    cancelPlaylistDownload,
+    clearDownloadState
   };
 };
