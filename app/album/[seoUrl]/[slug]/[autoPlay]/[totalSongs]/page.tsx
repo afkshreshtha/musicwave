@@ -142,6 +142,9 @@ export default function AlbumPage() {
     if (shouldAutoPlay && allSongs.length > 0) {
    
       handlePlayAlbum(true);
+            router.replace(
+        `/album/${album.name}/${album.id}/false/0`
+      );
     }
   }, [allSongs.length, params.autoPlay]);
 
