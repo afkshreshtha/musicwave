@@ -200,8 +200,8 @@ const Page = () => {
             </h1>
             
             <p className="text-lg sm:text-xl text-gray-600 dark:text-gray-300 mb-8 max-w-2xl mx-auto leading-relaxed">
-              Looks like this beat dropped off the map! The page you're looking for has gone silent. 
-              Let's get you back to the music.
+              Looks like this beat dropped off the map! The page you&apos;re looking for has gone silent. 
+              Let&apos;s get you back to the music.
             </p>
 
             {/* Music Waveform */}
@@ -258,7 +258,7 @@ const Page = () => {
             {/* Fun Music Facts */}
             <div className="mt-12 pt-8 border-t border-gray-200/50 dark:border-gray-700/50">
               <p className="text-sm text-gray-500 dark:text-gray-400 italic">
-                🎵 Fun fact: While you're here, over 65,000 songs are being streamed worldwide every second!
+                🎵 Fun fact: While you&apos;re here, over 65,000 songs are being streamed worldwide every second!
               </p>
             </div>
           </div>

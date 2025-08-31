@@ -394,7 +394,7 @@ export default function Home() {
             <div className="text-center py-12 sm:py-16">
               <div className="bg-white/90 dark:bg-gray-900/90 backdrop-blur-xl rounded-2xl border border-gray-200/60 dark:border-gray-700/60 p-6 sm:p-8 max-w-md mx-auto shadow-xl">
                 <div className="text-gray-600 dark:text-gray-300 text-base sm:text-lg font-medium">
-                  🎵 You've reached the end of {selectedGenre} tracks!
+                  🎵 You&apos;ve reached the end of {selectedGenre} tracks!
                 </div>
               </div>
             </div>

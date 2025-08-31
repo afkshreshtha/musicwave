@@ -13,53 +13,58 @@ export default function ResetPasswordPage() {
   const [isLoading, setIsLoading] = useState(false);
   const [isSuccess, setIsSuccess] = useState(false);
   const [hasValidToken, setHasValidToken] = useState(false);
-  
+
   const router = useRouter();
 
+  useEffect(() => {
+    // Check for access token in URL fragments (Supabase auth sends tokens in fragments)
+    const checkToken = () => {
+      // Make sure we're on the client side
+      if (typeof window === "undefined") return;
 
-useEffect(() => {
-  // Check for access token in URL fragments (Supabase auth sends tokens in fragments)
-  const checkToken = () => {
-    // Make sure we're on the client side
-    if (typeof window === 'undefined') return;
-    
-    console.log('Full URL:', window.location.href);
-    
-    const hash = window.location.hash;
-    console.log('Hash:', hash);
-    
-    if (hash) {
-      const fragment = hash.substring(1); // Remove the '#'
-      console.log('Fragment:', fragment);
-      
-      const params = new URLSearchParams(fragment);
-      const accessToken = params.get('token_hash');
-      const type = params.get('type');
-      
-      console.log('Access Token:', accessToken);
-      console.log('Type:', type);
-      
-      if (accessToken && type === 'recovery') {
-        setHasValidToken(true);
-        console.log('Valid token found!');
+      console.log("Full URL:", window.location.href);
+
+      const hash = window.location.hash;
+      console.log("Hash:", hash);
+
+      if (hash) {
+        const fragment = hash.substring(1); // Remove the '#'
+        console.log("Fragment:", fragment);
+
+        const params = new URLSearchParams(fragment);
+        const accessToken = params.get("token_hash");
+        const type = params.get("type");
+
+        console.log("Access Token:", accessToken);
+        console.log("Type:", type);
+
+        if (accessToken && type === "recovery") {
+          setHasValidToken(true);
+          console.log("Valid token found!");
+        } else {
+          console.log("Invalid token or type");
+          setMessage(
+            "Invalid or expired password reset link. Please request a new one."
+          );
+        }
       } else {
-        console.log('Invalid token or type');
-        setMessage("Invalid or expired password reset link. Please request a new one.");
+        console.log("No hash found in URL");
+        setMessage(
+          "Invalid or expired password reset link. Please request a new one."
+        );
       }
-    } else {
-      console.log('No hash found in URL');
-      setMessage("Invalid or expired password reset link. Please request a new one.");
-    }
-  };
+    };
 
-  // Add a small delay to ensure the component is mounted
-  setTimeout(checkToken, 100);
-}, []);
+    // Add a small delay to ensure the component is mounted
+    setTimeout(checkToken, 100);
+  }, []);
 
   const validatePassword = (pwd) => {
     if (pwd.length < 8) return "Password must be at least 8 characters";
-    if (!/[A-Z]/.test(pwd)) return "Password must contain at least one uppercase letter";
-    if (!/[a-z]/.test(pwd)) return "Password must contain at least one lowercase letter";
+    if (!/[A-Z]/.test(pwd))
+      return "Password must contain at least one uppercase letter";
+    if (!/[a-z]/.test(pwd))
+      return "Password must contain at least one lowercase letter";
     if (!/[0-9]/.test(pwd)) return "Password must contain at least one number";
     return null;
   };
@@ -86,7 +91,7 @@ useEffect(() => {
     try {
       // Update password using Supabase
       const { error } = await supabase.auth.updateUser({
-        password: password
+        password: password,
       });
 
       if (error) {
@@ -94,7 +99,7 @@ useEffect(() => {
       } else {
         setIsSuccess(true);
         setMessage("Password updated successfully! Redirecting to login...");
-        
+
         // Redirect to login after 3 seconds
         setTimeout(() => {
           router.push("/auth");
@@ -118,9 +123,7 @@ useEffect(() => {
             <h1 className="text-2xl font-bold text-gray-900 dark:text-white mb-4">
               Invalid Reset Link
             </h1>
-            <p className="text-gray-600 dark:text-gray-400 mb-6">
-              {message}
-            </p>
+            <p className="text-gray-600 dark:text-gray-400 mb-6">{message}</p>
             <button
               onClick={() => router.push("/auth")}
               className="w-full px-6 py-3 bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white rounded-xl transition-all duration-300 hover:scale-105 font-medium shadow-lg"
@@ -171,7 +174,11 @@ useEffect(() => {
                   onClick={() => setShowPassword(!showPassword)}
                   className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-500 hover:text-gray-700 dark:hover:text-gray-300 transition-colors"
                 >
-                  {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
+                  {showPassword ? (
+                    <EyeOff className="w-5 h-5" />
+                  ) : (
+                    <Eye className="w-5 h-5" />
+                  )}
                 </button>
               </div>
             </div>
@@ -195,7 +202,11 @@ useEffect(() => {
                   onClick={() => setShowConfirmPassword(!showConfirmPassword)}
                   className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-500 hover:text-gray-700 dark:hover:text-gray-300 transition-colors"
                 >
-                  {showConfirmPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
+                  {showConfirmPassword ? (
+                    <EyeOff className="w-5 h-5" />
+                  ) : (
+                    <Eye className="w-5 h-5" />
+                  )}
                 </button>
               </div>
             </div>
@@ -204,20 +215,52 @@ useEffect(() => {
             <div className="text-xs text-gray-500 dark:text-gray-400 space-y-1">
               <p className="font-medium">Password requirements:</p>
               <ul className="space-y-1 ml-4">
-                <li className={`flex items-center gap-2 ${password.length >= 8 ? 'text-green-600' : ''}`}>
-                  <div className={`w-1.5 h-1.5 rounded-full ${password.length >= 8 ? 'bg-green-600' : 'bg-gray-300'}`}></div>
+                <li
+                  className={`flex items-center gap-2 ${
+                    password.length >= 8 ? "text-green-600" : ""
+                  }`}
+                >
+                  <div
+                    className={`w-1.5 h-1.5 rounded-full ${
+                      password.length >= 8 ? "bg-green-600" : "bg-gray-300"
+                    }`}
+                  ></div>
                   At least 8 characters
                 </li>
-                <li className={`flex items-center gap-2 ${/[A-Z]/.test(password) ? 'text-green-600' : ''}`}>
-                  <div className={`w-1.5 h-1.5 rounded-full ${/[A-Z]/.test(password) ? 'bg-green-600' : 'bg-gray-300'}`}></div>
+                <li
+                  className={`flex items-center gap-2 ${
+                    /[A-Z]/.test(password) ? "text-green-600" : ""
+                  }`}
+                >
+                  <div
+                    className={`w-1.5 h-1.5 rounded-full ${
+                      /[A-Z]/.test(password) ? "bg-green-600" : "bg-gray-300"
+                    }`}
+                  ></div>
                   One uppercase letter
                 </li>
-                <li className={`flex items-center gap-2 ${/[a-z]/.test(password) ? 'text-green-600' : ''}`}>
-                  <div className={`w-1.5 h-1.5 rounded-full ${/[a-z]/.test(password) ? 'bg-green-600' : 'bg-gray-300'}`}></div>
+                <li
+                  className={`flex items-center gap-2 ${
+                    /[a-z]/.test(password) ? "text-green-600" : ""
+                  }`}
+                >
+                  <div
+                    className={`w-1.5 h-1.5 rounded-full ${
+                      /[a-z]/.test(password) ? "bg-green-600" : "bg-gray-300"
+                    }`}
+                  ></div>
                   One lowercase letter
                 </li>
-                <li className={`flex items-center gap-2 ${/[0-9]/.test(password) ? 'text-green-600' : ''}`}>
-                  <div className={`w-1.5 h-1.5 rounded-full ${/[0-9]/.test(password) ? 'bg-green-600' : 'bg-gray-300'}`}></div>
+                <li
+                  className={`flex items-center gap-2 ${
+                    /[0-9]/.test(password) ? "text-green-600" : ""
+                  }`}
+                >
+                  <div
+                    className={`w-1.5 h-1.5 rounded-full ${
+                      /[0-9]/.test(password) ? "bg-green-600" : "bg-gray-300"
+                    }`}
+                  ></div>
                   One number
                 </li>
               </ul>
@@ -225,11 +268,13 @@ useEffect(() => {
 
             {/* Message */}
             {message && (
-              <div className={`p-4 rounded-xl flex items-center gap-3 ${
-                isSuccess 
-                  ? 'bg-green-50 dark:bg-green-900/20 text-green-800 dark:text-green-200' 
-                  : 'bg-red-50 dark:bg-red-900/20 text-red-800 dark:text-red-200'
-              }`}>
+              <div
+                className={`p-4 rounded-xl flex items-center gap-3 ${
+                  isSuccess
+                    ? "bg-green-50 dark:bg-green-900/20 text-green-800 dark:text-green-200"
+                    : "bg-red-50 dark:bg-red-900/20 text-red-800 dark:text-red-200"
+                }`}
+              >
                 {isSuccess ? (
                   <CheckCircle className="w-5 h-5 flex-shrink-0" />
                 ) : (

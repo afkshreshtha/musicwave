@@ -451,7 +451,7 @@ export default function AlbumPage() {
               Album not found
             </p>
             <p className="text-gray-600 dark:text-gray-400 mb-6">
-              The album you're looking for doesn't exist or has been removed.
+              The album you&apos;re looking for doesn&apos;t exist or has been removed.
             </p>
             <button
               onClick={() => window.location.reload()}
@@ -1084,7 +1084,7 @@ export default function AlbumPage() {
             <div className="text-center py-8 md:py-12">
               <div className="bg-white/90 dark:bg-gray-900/90 backdrop-blur-xl rounded-2xl border border-gray-200/60 dark:border-gray-700/60 p-6 max-w-md mx-auto shadow-xl">
                 <div className="text-gray-600 dark:text-gray-300 text-sm md:text-base font-medium">
-                  🎵 You've reached the end of the album!
+                  🎵 You&apos;ve reached the end of the album!
                 </div>
               </div>
             </div>
