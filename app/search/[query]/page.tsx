@@ -16,6 +16,7 @@ import {
   Search,
   Sparkles,
   TrendingUp,
+  Download,
 } from "lucide-react";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
@@ -26,8 +27,11 @@ import {
   playPause,
   startPlaylist,
 } from "@/redux/features/musicPlayerSlice";
-import Navbar from "@/components/navbar";
+
 import { cn } from "@/lib/utils";
+import DownloadProgress from "@/components/DownloadProgress";
+import { useDownloadProgress } from "@/hooks/useDownloadProgress";
+import { downloadMP4WithMetadata } from "@/utils/download";
 
 const formatNumber = (num) => {
   if (!num || num === 0) return "0";
@@ -133,8 +137,8 @@ const Tab = ({ active, onClick, children, icon, count }) => (
       <span
         className={cn(
           "ml-1 px-2 py-0.5 rounded-full text-xs font-bold",
-          active 
-            ? "bg-primary-foreground/20 text-primary-foreground" 
+          active
+            ? "bg-primary-foreground/20 text-primary-foreground"
             : "bg-primary/20 text-primary"
         )}
         title={formatNumberWithCommas(count)}
@@ -155,7 +159,20 @@ const SongResult = ({ item, index, allSongs }) => {
   const dispatch = useDispatch();
   const { currentSong, isPlaying } = useSelector((state) => state.player);
   const isCurrentSong = currentSong?.id === item.id;
-
+  const {
+    startDownload,
+    updateProgress,
+    setError,
+    completeDownload,
+    cancelDownload,
+    getDownloadState,
+    completePlaylistDownload,
+    startPlaylistDownload,
+    cancelPlaylistDownload,
+    updatePlaylistProgress,
+    playlistDownload,
+    clearDownloadState,
+  } = useDownloadProgress();
   const handleNavigation = () => {
     const slug = item.slug || item.title?.toLowerCase().replace(/\s+/g, "-");
     router.push(`/song/${slug}/${item.id}/false/0`);
@@ -171,7 +188,65 @@ const SongResult = ({ item, index, allSongs }) => {
       dispatch(playSong(item));
     }
   };
+  function getFileExtension(url) {
+    if (!url || typeof url !== "string") return "mp4";
 
+    // Remove query params and hash fragments
+    const cleanUrl = url.split(/[?#]/)[0];
+
+    // Get the last path segment (filename)
+    const filename = cleanUrl.split("/").pop();
+
+    // Extract extension
+    if (!filename || !filename.includes(".")) return "mp4";
+
+    return filename.split(".").pop() || "mp4";
+  }
+
+  const resolveSongDownload = (song: Song) => {
+    // adapt to your API shape: pick the highest quality or first valid URL
+    const url = song.downloadUrl?.[4]?.url || song.url || song.streamUrl;
+    const safeName = `${song.name || "track"} - ${
+      song.artists?.primary?.[0]?.name || "unknown"
+    }`.replace(/[^\w\-\s\.\(\)\[\]]/g, "_");
+    console.log(safeName);
+    const ext = getFileExtension(url);
+    const filename = `${safeName}`;
+
+    return { url, filename };
+  };
+
+  const handleDownloadSong = async (song: Song) => {
+    try {
+      const { url, filename } = resolveSongDownload(song);
+      if (!url) throw new Error("Download URL not available");
+
+      // Start the download progress tracking
+      startDownload(song.id);
+
+      await downloadMP4WithMetadata(
+        url,
+        filename,
+        {
+          title: song.name || "Unknown Title",
+          artist: song.artists?.primary?.[0]?.name || "Unknown Artist",
+          album: song?.album?.name,
+          year: song?.year,
+          coverUrl: song.image?.[1]?.url || "/placeholder-album.jpg",
+        },
+        // Add progress callback
+        (progress, status) => {
+          updateProgress(song.id, progress, status);
+        }
+      );
+
+      // Mark as complete
+      completeDownload(song.id);
+    } catch (e) {
+      console.error(e);
+      setError(song.id, e.message || "Failed to download track");
+    }
+  };
   const handleSongClick = () => {
     if (window.innerWidth < 768) {
       handlePlayPause({ stopPropagation: () => {} });
@@ -298,13 +373,25 @@ const SongResult = ({ item, index, allSongs }) => {
       )}
 
       {/* Action Buttons */}
-      <div className="opacity-0 group-hover:opacity-100 flex items-center gap-1 transition-all duration-300 translate-x-2 group-hover:translate-x-0">
-        <button className="p-2 rounded-full hover:bg-destructive/10 transition-colors group/heart">
-          <Heart className="w-4 h-4 text-muted-foreground group-hover/heart:text-destructive transition-colors" />
-        </button>
-        <button className="p-2 rounded-full hover:bg-accent transition-colors">
-          <MoreHorizontal className="w-4 h-4 text-muted-foreground" />
-        </button>
+      <div className="min-w-[90px] flex justify-end">
+        {getDownloadState(item.id) ? (
+          <DownloadProgress
+            progress={getDownloadState(item.id).progress}
+            status={getDownloadState(item.id).status}
+            error={getDownloadState(item.id).error}
+            onCancel={() => cancelDownload(item.id)}
+            onComplete={() => clearDownloadState(item.id)} // Add this
+            isMobile={true}
+          />
+        ) : (
+          <button
+            onClick={() => handleDownloadSong(item)}
+            className="w-8 h-8 rounded-full bg-white/10 hover:bg-white/20 active:bg-white/30 transition-all duration-200 flex items-center justify-center text-gray-300 hover:text-white"
+            title="Download"
+          >
+            <Download className="w-3.5 h-3.5" />
+          </button>
+        )}
       </div>
     </div>
   );
@@ -599,7 +686,7 @@ export default function SearchPage() {
 
   return (
     <>
-      <Navbar />
+   
       <div className="min-h-screen bg-background text-foreground">
         <div className="relative container mx-auto px-4 py-8 max-w-6xl">
           {/* Header */}

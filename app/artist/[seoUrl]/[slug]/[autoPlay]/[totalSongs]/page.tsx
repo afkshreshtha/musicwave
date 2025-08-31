@@ -27,6 +27,7 @@ import {
   Volume2,
   Loader,
   List,
+  Download,
 } from "lucide-react";
 import { useParams, useRouter } from "next/navigation";
 import { useDispatch, useSelector } from "react-redux";
@@ -41,13 +42,16 @@ import {
   useGetArtistSongsByIdQuery,
   useGetArtistAlbumsByIdQuery,
 } from "@/redux/features/api/musicApi";
-import Navbar from "@/components/navbar";
+
 
 import Image from "next/image";
 import SortDropdown from "@/components/sort-dropdown";
 import useQueue from "@/hooks/useQueue";
 import Queue from "@/components/queue";
 import { RootState } from "@/redux/store";
+import { downloadMP4WithMetadata } from "@/utils/download";
+import { useDownloadProgress } from "@/hooks/useDownloadProgress";
+import DownloadProgress from "@/components/DownloadProgress";
 
 const ArtistDetailPage = () => {
   const { slug, autoPlay } = useParams();
@@ -67,7 +71,20 @@ const ArtistDetailPage = () => {
     sortBy: "popularity",
     sortOrder: "desc",
   });
-
+  const {
+    startDownload,
+    updateProgress,
+    setError,
+    completeDownload,
+    cancelDownload,
+    getDownloadState,
+    completePlaylistDownload,
+    startPlaylistDownload,
+    cancelPlaylistDownload,
+    updatePlaylistProgress,
+    playlistDownload,
+    clearDownloadState,
+  } = useDownloadProgress();
   const headerRef = useRef(null);
   const dispatch = useDispatch();
 
@@ -121,8 +138,6 @@ const ArtistDetailPage = () => {
   const artist = artistData?.data || {};
   const songs = songsData;
   const albums = albumsData; // Note: albums are in 'songs' property based on your API
-
-
 
   const { isPlaying, currentSong, queue } = useSelector(
     (state: RootState) => state.player
@@ -200,7 +215,6 @@ const ArtistDetailPage = () => {
 
       songsObserver.current = new IntersectionObserver((entries) => {
         if (entries[0].isIntersecting && songHasMore) {
-       
           setSongCurrentPage((prevPage) => prevPage + 1);
         }
       });
@@ -219,7 +233,6 @@ const ArtistDetailPage = () => {
 
       albumsObserver.current = new IntersectionObserver((entries) => {
         if (entries[0].isIntersecting && albumHasMore) {
-        
           setAlbumCurrentPage((prevPage) => prevPage + 1);
         }
       });
@@ -262,7 +275,6 @@ const ArtistDetailPage = () => {
   // Your existing handler functions...
   const handlePlayArtistSongs = (autoPlay = false) => {
     if (songs.songs.length > 0) {
-
       dispatch(
         startPlaylist({
           songs: songs.songs,
@@ -295,7 +307,6 @@ const ArtistDetailPage = () => {
 
   const handleFollowToggle = () => {
     setIsFollowing(!isFollowing);
- 
   };
 
   const handleShare = () => {
@@ -309,7 +320,65 @@ const ArtistDetailPage = () => {
       navigator.clipboard.writeText(window.location.href);
     }
   };
+  function getFileExtension(url) {
+    if (!url || typeof url !== "string") return "mp4";
 
+    // Remove query params and hash fragments
+    const cleanUrl = url.split(/[?#]/)[0];
+
+    // Get the last path segment (filename)
+    const filename = cleanUrl.split("/").pop();
+
+    // Extract extension
+    if (!filename || !filename.includes(".")) return "mp4";
+
+    return filename.split(".").pop() || "mp4";
+  }
+
+  const resolveSongDownload = (song: Song) => {
+    // adapt to your API shape: pick the highest quality or first valid URL
+    const url = song.downloadUrl?.[4]?.url || song.url || song.streamUrl;
+    const safeName = `${song.name || "track"} - ${
+      song.artists?.primary?.[0]?.name || "unknown"
+    }`.replace(/[^\w\-\s\.\(\)\[\]]/g, "_");
+    console.log(safeName);
+    const ext = getFileExtension(url);
+    const filename = `${safeName}`;
+
+    return { url, filename };
+  };
+
+  const handleDownloadSong = async (song: Song) => {
+    try {
+      const { url, filename } = resolveSongDownload(song);
+      if (!url) throw new Error("Download URL not available");
+
+      // Start the download progress tracking
+      startDownload(song.id);
+
+      await downloadMP4WithMetadata(
+        url,
+        filename,
+        {
+          title: song.name || "Unknown Title",
+          artist: song.artists?.primary?.[0]?.name || "Unknown Artist",
+          album: song?.album?.name,
+          year: song?.year,
+          coverUrl: song.image?.[1]?.url || "/placeholder-album.jpg",
+        },
+        // Add progress callback
+        (progress, status) => {
+          updateProgress(song.id, progress, status);
+        }
+      );
+
+      // Mark as complete
+      completeDownload(song.id);
+    } catch (e) {
+      console.error(e);
+      setError(song.id, e.message || "Failed to download track");
+    }
+  };
   const isCurrentArtist =
     queue.length > 0 &&
     songs?.songs?.some((song) =>
@@ -381,7 +450,7 @@ const ArtistDetailPage = () => {
   if (artistLoading) {
     return (
       <>
-        <Navbar />
+       
         <LoadingSkeleton />
       </>
     );
@@ -391,7 +460,7 @@ const ArtistDetailPage = () => {
   if (artistError || !artist.id) {
     return (
       <>
-        <Navbar />
+ 
         <div className="min-h-screen bg-gradient-to-br from-purple-50 to-pink-50 dark:from-gray-900 dark:to-gray-800 text-white flex items-center justify-center px-4">
           <div className="text-center">
             <p className="text-lg md:text-xl text-red-400 mb-4">
@@ -793,12 +862,26 @@ const ArtistDetailPage = () => {
                                 {formatNumber(song.playCount)}
                               </span>
                             )}
-                            <button
-                              //  onClick={() => handleLike(song.id)}
-                              className="p-1.5 rounded-full hover:bg-white/10 transition-colors duration-200 text-gray-400 hover:text-white opacity-100 md:opacity-0 md:group-hover:opacity-100"
-                            >
-                              <Heart className="w-4 h-4" />
-                            </button>
+                            <div className="min-w-[90px] flex justify-end">
+                              {getDownloadState(song.id) ? (
+                                <DownloadProgress
+                                  progress={getDownloadState(song.id).progress}
+                                  status={getDownloadState(song.id).status}
+                                  error={getDownloadState(song.id).error}
+                                  onCancel={() => cancelDownload(song.id)}
+                                  onComplete={() => clearDownloadState(song.id)} // Add this
+                                  isMobile={true}
+                                />
+                              ) : (
+                                <button
+                                  onClick={() => handleDownloadSong(song)}
+                                  className="w-8 h-8 rounded-full bg-white/10 hover:bg-white/20 active:bg-white/30 transition-all duration-200 flex items-center justify-center text-gray-300 hover:text-white"
+                                  title="Download"
+                                >
+                                  <Download className="w-3.5 h-3.5" />
+                                </button>
+                              )}
+                            </div>
                           </div>
                         </div>
                       ))}
@@ -826,7 +909,9 @@ const ArtistDetailPage = () => {
                           key={album.id}
                           className="group bg-white/5 backdrop-blur-xl rounded-2xl p-4 border border-white/5 hover:border-white/20 hover:bg-white/10 transition-all duration-300 cursor-pointer"
                           onClick={() =>
-                            router.push(`/album/${album.id}/false/0`)
+                            router.push(
+                              `/album/${album.name}/${album.id}/false/0`
+                            )
                           }
                         >
                           <div className="relative mb-4">
@@ -848,6 +933,9 @@ const ArtistDetailPage = () => {
                             <button
                               onClick={(e) => {
                                 e.stopPropagation();
+                                router.push(
+                                  `/album/${album.name}/${album.id}/true/0`
+                                );
                                 // Handle album play
                               }}
                               className="absolute bottom-2 right-2 w-10 h-10 bg-gradient-to-r from-purple-600 to-pink-600 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transform translate-y-2 group-hover:translate-y-0 transition-all duration-300 shadow-lg"
@@ -970,12 +1058,30 @@ const ArtistDetailPage = () => {
                                   {formatNumber(song.playCount)}
                                 </span>
                               )}
-                              <button
-                                // onClick={() => handleLi(song.id)}
-                                className="p-1.5 rounded-full hover:bg-white/10 transition-colors duration-200 text-gray-400 hover:text-white opacity-100 md:opacity-0 md:group-hover:opacity-100"
-                              >
-                                <Heart className="w-4 h-4" />
-                              </button>
+                              <div className="min-w-[90px] flex justify-end">
+                                {getDownloadState(song.id) ? (
+                                  <DownloadProgress
+                                    progress={
+                                      getDownloadState(song.id).progress
+                                    }
+                                    status={getDownloadState(song.id).status}
+                                    error={getDownloadState(song.id).error}
+                                    onCancel={() => cancelDownload(song.id)}
+                                    onComplete={() =>
+                                      clearDownloadState(song.id)
+                                    } // Add this
+                                    isMobile={true}
+                                  />
+                                ) : (
+                                  <button
+                                    onClick={() => handleDownloadSong(song)}
+                                    className="w-8 h-8 rounded-full bg-white/10 hover:bg-white/20 active:bg-white/30 transition-all duration-200 flex items-center justify-center text-gray-300 hover:text-white"
+                                    title="Download"
+                                  >
+                                    <Download className="w-3.5 h-3.5" />
+                                  </button>
+                                )}
+                              </div>
                             </div>
                           </div>
                         );
@@ -1069,6 +1175,9 @@ const ArtistDetailPage = () => {
                               <button
                                 onClick={(e) => {
                                   e.stopPropagation();
+                                  router.push(
+                                    `/album/${album.name}/${album.id}/true/0`
+                                  );
                                   // Handle album play
                                 }}
                                 className="absolute bottom-2 right-2 w-10 h-10 bg-gradient-to-r from-purple-600 to-pink-600 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transform translate-y-2 group-hover:translate-y-0 transition-all duration-300 shadow-lg"

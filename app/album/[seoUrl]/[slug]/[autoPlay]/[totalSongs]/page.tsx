@@ -23,6 +23,7 @@ import {
   Trash2,
   Loader,
   ArrowLeft,
+  Music,
 } from "lucide-react";
 import { useParams, useRouter } from "next/navigation";
 import { useGetAlbumByIdQuery } from "@/redux/features/api/musicApi";
@@ -38,10 +39,69 @@ import {
   setRepeatMode,
   startPlaylist,
 } from "@/redux/features/musicPlayerSlice";
-import Navbar from "@/components/navbar";
+
 import Image from "next/image";
 import Queue from "@/components/queue";
 import { RootState } from "@/redux/store";
+import { useDownloadProgress } from "@/hooks/useDownloadProgress";
+import PlaylistDownloadProgress from "@/components/playlistDownloadProgress";
+import { downloadPlaylistAsZip } from "@/utils/playlistDownload";
+import DownloadProgress from "@/components/DownloadProgress";
+import { downloadMP4WithMetadata } from "@/utils/download";
+
+// Enhanced Minimized Progress Indicator with Dark/Light Mode
+const MinimizedProgressIndicator = ({ playlistDownload, onExpand }) => {
+  if (!playlistDownload.isDownloading) return null;
+
+  return (
+    <div className="fixed top-20 md:top-20 right-4 z-50">
+      <div className="bg-white/95 dark:bg-gray-900/95 border border-gray-200/60 dark:border-gray-700/60 rounded-2xl shadow-2xl dark:shadow-purple-500/10 p-4 min-w-[280px] backdrop-blur-xl">
+        <div className="flex items-center gap-3">
+          {/* Progress Circle */}
+          <div className="relative w-10 h-10 flex-shrink-0">
+            <svg className="w-10 h-10 transform -rotate-90" viewBox="0 0 36 36">
+              <path
+                className="stroke-gray-300 dark:stroke-gray-600"
+                d="m18,2.0845 a 15.9155,15.9155 0 0,1 0,31.831 a 15.9155,15.9155 0 0,1 0,-31.831"
+                fill="none"
+                strokeWidth="2"
+              />
+              <path
+                className="stroke-purple-600 dark:stroke-purple-400"
+                d="m18,2.0845 a 15.9155,15.9155 0 0,1 0,31.831 a 15.9155,15.9155 0 0,1 0,-31.831"
+                fill="none"
+                strokeWidth="2"
+                strokeDasharray={`${playlistDownload.overallProgress}, 100`}
+                strokeLinecap="round"
+              />
+            </svg>
+            <Download className="w-5 h-5 text-purple-600 dark:text-purple-400 absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2" />
+          </div>
+
+          {/* Progress Info */}
+          <div className="flex-1 min-w-0" onClick={onExpand}>
+            <div className="flex items-center justify-between mb-1">
+              <p className="text-gray-900 dark:text-white text-sm font-medium cursor-pointer">
+                Downloading Album
+              </p>
+              <span className="text-xs text-purple-600 dark:text-purple-400 bg-purple-100 dark:bg-purple-900/30 px-2 py-1 rounded-full">
+                {playlistDownload.currentSong}/{playlistDownload.totalSongs}
+              </span>
+            </div>
+            <div className="flex items-center justify-between">
+              <p className="text-xs text-gray-600 dark:text-gray-400 truncate cursor-pointer">
+                {playlistDownload.currentSongName || "Processing..."}
+              </p>
+              <span className="text-xs text-gray-500 dark:text-gray-400">
+                {Math.round(playlistDownload.overallProgress)}%
+              </span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
 
 export default function AlbumPage() {
   const params = useParams();
@@ -49,9 +109,26 @@ export default function AlbumPage() {
   const [scrolled, setScrolled] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
   const [hasMore, setHasMore] = useState(true);
+  const [showProgressDialog, setShowProgressDialog] = useState(false);
   const headerRef = useRef(null);
   const observerRef = useRef(null);
-  const dispatch = useDispatch(); // Fetch data with current page
+  const dispatch = useDispatch();
+  
+  const {
+    startDownload,
+    updateProgress,
+    setError,
+    completeDownload,
+    cancelDownload,
+    getDownloadState,
+    completePlaylistDownload,
+    startPlaylistDownload,
+    cancelPlaylistDownload,
+    updatePlaylistProgress,
+    playlistDownload,
+    clearDownloadState,
+  } = useDownloadProgress();
+
   const {
     data: album,
     isLoading: albumLoading,
@@ -77,22 +154,78 @@ export default function AlbumPage() {
 
   const totalSongs = params.totalSongs;
 
-  // Reset pagination when album changes
-  useEffect(() => {
-    setCurrentPage(1);
-    setHasMore(true);
-  }, [params.slug]);
+  function getFileExtension(url) {
+    if (!url || typeof url !== "string") return "mp4";
+    const cleanUrl = url.split(/[?#]/)[0];
+    const filename = cleanUrl.split("/").pop();
+    if (!filename || !filename.includes(".")) return "mp4";
+    return filename.split(".").pop() || "mp4";
+  }
 
-  // Check if we have more pages to load
-  useEffect(() => {
-    if (album) {
-      const currentResults = album.songs?.length || 0;
-      const total = totalSongs || album.trackCount || 0;
-      setHasMore(currentResults < total && currentResults >= 10);
+  const resolveSongDownload = (song: Song) => {
+    const url = song.downloadUrl?.[4]?.url || song.url || song.streamUrl;
+    const safeName = `${song.name || "track"} - ${
+      song.artists?.primary?.[0]?.name || "unknown"
+    }`.replace(/[^\w\-\s\.\(\)\[\]]/g, "_");
+    const filename = `${safeName}`;
+    return { url, filename };
+  };
+
+  const handleDownloadSong = async (song: Song) => {
+    try {
+      const { url, filename } = resolveSongDownload(song);
+      if (!url) throw new Error("Download URL not available");
+
+      startDownload(song.id);
+
+      await downloadMP4WithMetadata(
+        url,
+        filename,
+        {
+          title: song.name || "Unknown Title",
+          artist: song.artists?.primary?.[0]?.name || "Unknown Artist",
+          album: song?.album?.name,
+          year: song?.year,
+          coverUrl: song.image?.[1]?.url || "/placeholder-album.jpg",
+        },
+        (progress, status) => {
+          updateProgress(song.id, progress, status);
+        }
+      );
+
+      completeDownload(song.id);
+    } catch (e) {
+      console.error(e);
+      setError(song.id, e.message || "Failed to download track");
     }
-  }, [album, totalSongs]);
+  };
 
-  // Intersection Observer for infinite scroll
+  const handleDownloadPlaylist = async () => {
+    if (!allSongs.length) return;
+
+    try {
+      startPlaylistDownload();
+      setShowProgressDialog(true);
+
+      const { errors } = await downloadPlaylistAsZip(
+        allSongs,
+        album?.name || "Album",
+        (progress) => {
+          updatePlaylistProgress({
+            ...progress,
+            isDownloading: true,
+          });
+        }
+      );
+
+      completePlaylistDownload(errors);
+    } catch (error) {
+      console.error("Album download failed:", error);
+      cancelPlaylistDownload();
+      setShowProgressDialog(false);
+    }
+  };
+
   const lastElementRef = useCallback(
     (node) => {
       if (albumLoading || isFetching) return;
@@ -116,53 +249,12 @@ export default function AlbumPage() {
     [albumLoading, isFetching, hasMore]
   );
 
-  // Memoize all songs for better performance
   const allSongs = useMemo(() => {
     return album?.songs || [];
   }, [album?.songs]);
 
-  // Update queue whenever new songs are loaded
-  useEffect(() => {
-    if (allSongs.length > 0) {
-      const isCurrentAlbum =
-        queue.length > 0 &&
-        allSongs.some((song) =>
-          queue.some((queueSong) => queueSong.id === song.id)
-        );
-
-      if (isCurrentAlbum || queue.length === 0) {
-        dispatch(setQueue(allSongs));
-      }
-    }
-  }, [allSongs, dispatch]);
-
-  // Check for auto-play on mount
-  useEffect(() => {
-    const shouldAutoPlay = params.autoPlay === "true";
-    if (shouldAutoPlay && allSongs.length > 0) {
-   
-      handlePlayAlbum(true);
-            router.replace(
-        `/album/${album.name}/${album.id}/false/0`
-      );
-    }
-  }, [allSongs.length, params.autoPlay]);
-
-  useEffect(() => {
-    const handleScroll = () => {
-      if (headerRef.current) {
-        const scrollTop = window.scrollY;
-        setScrolled(scrollTop > 200);
-      }
-    };
-
-    window.addEventListener("scroll", handleScroll);
-    return () => window.removeEventListener("scroll", handleScroll);
-  }, []);
-
   const handlePlayAlbum = (autoPlay = false) => {
     if (allSongs.length > 0) {
-
       dispatch(
         startPlaylist({
           songs: allSongs,
@@ -193,14 +285,6 @@ export default function AlbumPage() {
     }
   };
 
-  const handleLike = (songId) => {
-    // Implement like functionality
-  };
-
-  const handleRemoveFromQueue = (songId) => {
-    dispatch(removeFromQueue(songId));
-  };
-
   const handleShuffleToggle = () => {
     dispatch(toggleShuffle());
   };
@@ -212,40 +296,39 @@ export default function AlbumPage() {
     dispatch(setRepeatMode(nextMode));
   };
 
-  // Check if the current queue is from this album
   const isCurrentAlbum =
     queue.length > 0 &&
     allSongs.some((song) =>
       queue.some((queueSong) => queueSong.id === song.id)
     );
 
-  // Simple Loading Component
+  // Enhanced Loading Component with Dark/Light Mode
   const SongLoadingSkeleton = ({ count = 10 }) => {
     return (
       <div className="space-y-2">
         {[...Array(count)].map((_, index) => (
           <div
             key={index}
-            className="flex items-center gap-3 p-3 rounded-xl bg-white/5 animate-pulse"
+            className="flex items-center gap-3 p-3 rounded-xl bg-gray-100 dark:bg-white/5 animate-pulse"
           >
-            <div className="w-8 h-4 bg-gray-600 rounded flex-shrink-0"></div>
-            <div className="w-12 h-12 bg-gray-600 rounded-lg flex-shrink-0"></div>
+            <div className="w-8 h-4 bg-gray-300 dark:bg-gray-600 rounded flex-shrink-0"></div>
+            <div className="w-12 h-12 bg-gray-300 dark:bg-gray-600 rounded-lg flex-shrink-0"></div>
             <div className="flex-1 space-y-2">
-              <div className="h-4 bg-gray-600 rounded w-3/4"></div>
-              <div className="h-3 bg-gray-700 rounded w-1/2"></div>
+              <div className="h-4 bg-gray-300 dark:bg-gray-600 rounded w-3/4"></div>
+              <div className="h-3 bg-gray-200 dark:bg-gray-700 rounded w-1/2"></div>
             </div>
-            <div className="w-8 h-3 bg-gray-700 rounded flex-shrink-0"></div>
+            <div className="w-8 h-3 bg-gray-200 dark:bg-gray-700 rounded flex-shrink-0"></div>
           </div>
         ))}
       </div>
     );
   };
 
-  // Simple Infinite Loading Indicator
+  // Enhanced Infinite Loading Indicator
   const InfiniteLoadingIndicator = () => {
     return (
       <div className="flex justify-center items-center py-8">
-        <div className="flex items-center gap-3 text-gray-400">
+        <div className="flex items-center gap-3 text-gray-600 dark:text-gray-400">
           <Loader className="w-5 h-5 animate-spin" />
           <span className="text-sm">Loading more songs...</span>
         </div>
@@ -253,29 +336,90 @@ export default function AlbumPage() {
     );
   };
 
-  // Show initial loading for first page
+  const handleLike = (songId) => {
+    // Implement like functionality
+  };
+
+  // Reset pagination when album changes
+  useEffect(() => {
+    setCurrentPage(1);
+    setHasMore(true);
+  }, [params.slug]);
+
+  // Check if we have more pages to load
+  useEffect(() => {
+    if (album) {
+      const currentResults = album.songs?.length || 0;
+      const total = totalSongs || album.trackCount || 0;
+      setHasMore(currentResults < total && currentResults >= 10);
+    }
+  }, [album, totalSongs]);
+
+  useEffect(() => {
+    if (playlistDownload.isDownloading && !showProgressDialog) {
+      setShowProgressDialog(true);
+    }
+  }, [playlistDownload.isDownloading]);
+
+  // Update queue whenever new songs are loaded
+  useEffect(() => {
+    if (allSongs.length > 0) {
+      const isCurrentAlbum =
+        queue.length > 0 &&
+        allSongs.some((song) =>
+          queue.some((queueSong) => queueSong.id === song.id)
+        );
+
+      if (isCurrentAlbum || queue.length === 0) {
+        dispatch(setQueue(allSongs));
+      }
+    }
+  }, [allSongs, dispatch]);
+
+  // Check for auto-play on mount
+  useEffect(() => {
+    const shouldAutoPlay = params.autoPlay === "true";
+    if (shouldAutoPlay && allSongs.length > 0) {
+      handlePlayAlbum(true);
+      router.replace(`/album/${album.name}/${album.id}/false/0`);
+    }
+  }, [allSongs.length, params.autoPlay]);
+
+  useEffect(() => {
+    const handleScroll = () => {
+      if (headerRef.current) {
+        const scrollTop = window.scrollY;
+        setScrolled(scrollTop > 200);
+      }
+    };
+
+    window.addEventListener("scroll", handleScroll);
+    return () => window.removeEventListener("scroll", handleScroll);
+  }, []);
+
+  // Show initial loading for first page with enhanced styling
   if (albumLoading && currentPage === 1) {
     return (
       <>
-        <Navbar />
-        <div className="min-h-screen bg-gradient-to-br from-purple-50 to-pink-50 dark:from-gray-900 dark:to-gray-800 text-white relative overflow-hidden">
-          <div className="fixed inset-0 bg-gradient-to-br from-purple-900/20 via-pink-900/10 to-blue-900/20 pointer-events-none"></div>
+ 
+        <div className="min-h-screen bg-gradient-to-br from-gray-50 via-white to-gray-100 dark:from-gray-900 dark:via-gray-800 dark:to-black text-gray-900 dark:text-white relative overflow-hidden">
+          <div className="fixed inset-0 bg-gradient-to-br from-purple-500/5 via-pink-500/3 to-blue-500/5 dark:from-purple-900/20 dark:via-pink-900/10 dark:to-blue-900/20 pointer-events-none"></div>
 
           {/* Mobile Loading Header */}
           <div className="flex items-center gap-4 p-4 md:hidden">
-            <div className="w-6 h-6 bg-gray-600 rounded animate-pulse"></div>
-            <div className="h-6 bg-gray-600 rounded w-32 animate-pulse"></div>
+            <div className="w-6 h-6 bg-gray-300 dark:bg-gray-600 rounded animate-pulse"></div>
+            <div className="h-6 bg-gray-300 dark:bg-gray-600 rounded w-32 animate-pulse"></div>
           </div>
 
           <div className="relative pt-4 md:pt-20 pb-8">
             <div className="max-w-7xl mx-auto px-4 md:px-6">
               <div className="flex flex-col items-center md:flex-row md:items-start lg:items-end gap-6 md:gap-8">
-                <div className="w-64 h-64 md:w-80 md:h-80 bg-gray-700 rounded-3xl animate-pulse"></div>
+                <div className="w-64 h-64 md:w-80 md:h-80 bg-gray-300 dark:bg-gray-700 rounded-3xl animate-pulse shadow-2xl"></div>
                 <div className="flex-1 space-y-4 md:space-y-6 text-center md:text-left">
                   <div className="space-y-3 md:space-y-4">
-                    <div className="h-3 md:h-4 bg-gray-600 rounded w-16 md:w-20 mx-auto md:mx-0"></div>
-                    <div className="h-8 md:h-16 bg-gray-600 rounded w-full md:w-3/4 mx-auto md:mx-0"></div>
-                    <div className="h-4 md:h-6 bg-gray-700 rounded w-full mx-auto md:mx-0"></div>
+                    <div className="h-3 md:h-4 bg-gray-300 dark:bg-gray-600 rounded w-16 md:w-20 mx-auto md:mx-0"></div>
+                    <div className="h-8 md:h-16 bg-gray-300 dark:bg-gray-600 rounded w-full md:w-3/4 mx-auto md:mx-0"></div>
+                    <div className="h-4 md:h-6 bg-gray-200 dark:bg-gray-700 rounded w-full mx-auto md:mx-0"></div>
                   </div>
                 </div>
               </div>
@@ -284,7 +428,7 @@ export default function AlbumPage() {
 
           <div className="max-w-7xl mx-auto px-4 md:px-6 pb-32">
             <div className="mb-6 md:mb-8">
-              <div className="h-6 md:h-8 bg-gray-600 rounded w-32 md:w-48 mb-4"></div>
+              <div className="h-6 md:h-8 bg-gray-300 dark:bg-gray-600 rounded w-32 md:w-48 mb-4"></div>
             </div>
             <SongLoadingSkeleton count={20} />
           </div>
@@ -293,18 +437,25 @@ export default function AlbumPage() {
     );
   }
 
+  // Enhanced Error State
   if (isError) {
     return (
       <>
-        <Navbar />
-        <div className="min-h-screen bg-gradient-to-br from-purple-50 to-pink-50 dark:from-gray-900 dark:to-gray-800 text-white flex items-center justify-center px-4">
-          <div className="text-center">
-            <p className="text-lg md:text-xl text-red-400 mb-4">
-              Error loading album
+   
+        <div className="min-h-screen bg-gradient-to-br from-gray-50 via-white to-gray-100 dark:from-gray-900 dark:via-gray-800 dark:to-black text-gray-900 dark:text-white flex items-center justify-center px-4">
+          <div className="text-center bg-white/90 dark:bg-gray-900/90 backdrop-blur-xl rounded-3xl border border-gray-200/60 dark:border-gray-700/60 p-8 shadow-2xl max-w-md mx-auto">
+            <div className="w-16 h-16 bg-red-100 dark:bg-red-900/30 rounded-full flex items-center justify-center mx-auto mb-4">
+              <Music className="w-8 h-8 text-red-600 dark:text-red-400" />
+            </div>
+            <p className="text-lg md:text-xl text-red-600 dark:text-red-400 mb-4 font-semibold">
+              Album not found
+            </p>
+            <p className="text-gray-600 dark:text-gray-400 mb-6">
+              The album you're looking for doesn't exist or has been removed.
             </p>
             <button
               onClick={() => window.location.reload()}
-              className="px-6 py-3 bg-purple-600 rounded-lg hover:bg-purple-700 transition-colors"
+              className="px-6 py-3 bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white rounded-xl transition-all duration-300 hover:scale-105 font-medium shadow-lg"
             >
               Try Again
             </button>
@@ -316,24 +467,24 @@ export default function AlbumPage() {
 
   return (
     <>
-      <Navbar />
+   
 
-      <div className="min-h-screen bg-gradient-to-br from-purple-50 to-pink-50 dark:from-gray-900 dark:to-gray-800 text-white relative overflow-hidden">
-        {/* Background Effects */}
-        <div className="fixed inset-0 bg-gradient-to-br from-purple-900/20 via-pink-900/10 to-blue-900/20 pointer-events-none"></div>
+      <div className="min-h-screen bg-gradient-to-br from-gray-50 via-white to-gray-100 dark:from-gray-900 dark:via-gray-800 dark:to-black text-gray-900 dark:text-white relative overflow-hidden">
+        {/* Enhanced Background Effects */}
+        <div className="fixed inset-0 bg-gradient-to-br from-purple-500/5 via-pink-500/3 to-blue-500/5 dark:from-purple-900/20 dark:via-pink-900/10 dark:to-blue-900/20 pointer-events-none"></div>
 
-        {/* Mobile Navigation Header */}
-        <div className="md:hidden fixed top-0 left-0 right-0 z-50 bg-black/90 backdrop-blur-xl border-b border-white/10">
+        {/* Enhanced Mobile Navigation Header */}
+        <div className="md:hidden fixed top-0 left-0 right-0 z-50 bg-white/90 dark:bg-black/90 backdrop-blur-xl border-b border-gray-200/50 dark:border-white/10">
           <div className="flex items-center gap-4 p-4">
             <button
               onClick={() => router.back()}
-              className="p-2 rounded-full hover:bg-white/10 transition-colors"
+              className="p-2 rounded-full hover:bg-gray-100 dark:hover:bg-white/10 transition-colors"
             >
               <ArrowLeft className="w-5 h-5" />
             </button>
             {scrolled && (
               <>
-                <div className="w-8 h-8 rounded overflow-hidden">
+                <div className="w-8 h-8 rounded-lg overflow-hidden shadow-md">
                   <Image
                     src={album?.image?.[2]?.url || "/placeholder-album.jpg"}
                     alt={album?.name}
@@ -344,7 +495,7 @@ export default function AlbumPage() {
                 </div>
                 <div className="flex-1 min-w-0">
                   <h1 className="font-semibold truncate">{album?.name}</h1>
-                  <p className="text-xs text-gray-400">
+                  <p className="text-xs text-gray-500 dark:text-gray-400">
                     {allSongs.length} songs
                   </p>
                 </div>
@@ -356,14 +507,14 @@ export default function AlbumPage() {
                 className={`p-2 rounded-full transition-colors ${
                   showQueue
                     ? "bg-purple-600 text-white"
-                    : "bg-white/10 hover:bg-white/20"
+                    : "bg-gray-100 dark:bg-white/10 hover:bg-gray-200 dark:hover:bg-white/20"
                 }`}
               >
                 <List className="w-5 h-5" />
               </button>
               <button
                 onClick={() => handlePlayPause()}
-                className="w-10 h-10 bg-gradient-to-r from-purple-600 to-pink-600 rounded-full flex items-center justify-center hover:scale-105 transition-all duration-300"
+                className="w-10 h-10 bg-gradient-to-r from-purple-600 to-pink-600 rounded-full flex items-center justify-center hover:scale-105 transition-all duration-300 shadow-lg"
               >
                 {isPlaying && isCurrentAlbum ? (
                   <Pause className="w-4 h-4 text-white" />
@@ -375,19 +526,19 @@ export default function AlbumPage() {
           </div>
         </div>
 
-        {/* Desktop Sticky Header */}
+        {/* Enhanced Desktop Sticky Header */}
         <div
           ref={headerRef}
           className={`hidden md:block fixed top-0 left-0 right-0 z-50 transition-all duration-500 ${
             scrolled
-              ? "bg-black/90 backdrop-blur-xl border-b border-white/10 py-3"
+              ? "bg-white/90 dark:bg-black/90 backdrop-blur-xl border-b border-gray-200/50 dark:border-white/10 py-3"
               : "bg-transparent py-6 top-20"
           }`}
         >
           <div className="max-w-7xl mx-auto px-6 flex items-center gap-4">
             {scrolled && (
               <>
-                <div className="w-12 h-12 rounded-lg overflow-hidden ring-2 ring-purple-500/30">
+                <div className="w-12 h-12 rounded-xl overflow-hidden ring-2 ring-purple-500/30 shadow-lg">
                   <Image
                     src={album?.image?.[2]?.url || "/placeholder-album.jpg"}
                     alt={album?.name}
@@ -398,10 +549,10 @@ export default function AlbumPage() {
                 </div>
                 <div>
                   <h1 className="text-xl font-bold">{album?.name}</h1>
-                  <p className="text-sm text-gray-400">
+                  <p className="text-sm text-gray-500 dark:text-gray-400">
                     {allSongs.length} songs
                     {isFetching && currentPage > 1 && (
-                      <span className="ml-1 text-purple-400">
+                      <span className="ml-1 text-purple-600 dark:text-purple-400">
                         • Loading more...
                       </span>
                     )}
@@ -416,7 +567,7 @@ export default function AlbumPage() {
                 className={`p-3 rounded-full transition-colors duration-300 ${
                   showQueue
                     ? "bg-purple-600 text-white"
-                    : "bg-white/10 hover:bg-white/20"
+                    : "bg-gray-100 dark:bg-white/10 hover:bg-gray-200 dark:hover:bg-white/20"
                 }`}
               >
                 <List className="w-5 h-5" />
@@ -436,14 +587,14 @@ export default function AlbumPage() {
           </div>
         </div>
 
-        {/* Hero Section */}
+        {/* Enhanced Hero Section */}
         <div className="relative pt-16 md:pt-20 pb-6 md:pb-8">
           <div className="max-w-7xl mx-auto px-4 md:px-6">
             <div className="flex flex-col items-center md:flex-row md:items-start lg:items-end gap-6 md:gap-8">
-              {/* Cover Art */}
+              {/* Enhanced Cover Art */}
               <div className="relative group">
-                <div className="relative w-64 h-64 md:w-80 md:h-80 rounded-3xl overflow-hidden shadow-2xl shadow-black/50">
-                  <div className="absolute -inset-4 bg-gradient-to-r from-purple-500/30 via-pink-500/30 to-blue-500/30 rounded-3xl blur-xl opacity-75 group-hover:opacity-100 transition-opacity duration-500"></div>
+                <div className="relative w-64 h-64 md:w-80 md:h-80 rounded-3xl overflow-hidden shadow-2xl shadow-gray-500/20 dark:shadow-black/50">
+                  <div className="absolute -inset-6 bg-gradient-to-r from-purple-500/20 via-pink-500/20 to-blue-500/20 dark:from-purple-500/30 dark:via-pink-500/30 dark:to-blue-500/30 rounded-3xl blur-2xl opacity-75 group-hover:opacity-100 transition-opacity duration-500"></div>
 
                   <div className="relative w-full h-full">
                     <Image
@@ -457,7 +608,7 @@ export default function AlbumPage() {
                     <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-all duration-300 flex items-center justify-center">
                       <button
                         onClick={() => handlePlayPause()}
-                        className="w-16 h-16 md:w-20 md:h-20 bg-white/20 backdrop-blur-sm rounded-full flex items-center justify-center hover:bg-white/30 transition-colors duration-300"
+                        className="w-16 h-16 md:w-20 md:h-20 bg-white/25 dark:bg-white/20 backdrop-blur-md rounded-full flex items-center justify-center hover:bg-white/35 dark:hover:bg-white/30 transition-colors duration-300 shadow-xl"
                       >
                         {isPlaying && isCurrentAlbum ? (
                           <Pause className="w-6 h-6 md:w-8 md:h-8 text-white" />
@@ -470,27 +621,27 @@ export default function AlbumPage() {
                 </div>
               </div>
 
-              {/* Album Info */}
+              {/* Enhanced Album Info */}
               <div className="flex-1 space-y-4 md:space-y-6 text-center md:text-left">
                 <div>
-                  <p className="text-xs md:text-sm font-semibold text-purple-400 uppercase tracking-wider mb-2">
+                  <p className="text-xs md:text-sm font-semibold text-purple-600 dark:text-purple-400 uppercase tracking-wider mb-2">
                     Album
                   </p>
-                  <h1 className="text-3xl md:text-4xl lg:text-6xl font-black mb-3 md:mb-4 bg-gradient-to-r from-white via-purple-200 to-pink-200 bg-clip-text text-transparent">
+                  <h1 className="text-3xl md:text-4xl lg:text-6xl font-black mb-3 md:mb-4 bg-gradient-to-r from-gray-900 via-purple-800 to-pink-800 dark:from-white dark:via-purple-200 dark:to-pink-200 bg-clip-text text-transparent leading-tight">
                     {album?.name}
                   </h1>
-                  <p className="text-gray-300 text-sm md:text-lg leading-relaxed max-w-2xl mx-auto md:mx-0">
+                  <p className="text-gray-600 dark:text-gray-300 text-sm md:text-lg leading-relaxed max-w-2xl mx-auto md:mx-0">
                     By{" "}
                     {album?.artists?.all
                       ?.map((artist) => artist.name)
                       .join(", ") ||
                       album?.artist ||
-                      "Various artist"}
+                      "Various Artists"}
                   </p>
                 </div>
 
-                {/* Stats */}
-                <div className="flex flex-wrap items-center justify-center md:justify-start gap-4 md:gap-6 text-xs md:text-sm text-gray-400">
+                {/* Enhanced Stats */}
+                <div className="flex flex-wrap items-center justify-center md:justify-start gap-4 md:gap-6 text-xs md:text-sm text-gray-500 dark:text-gray-400">
                   <div className="flex items-center gap-2">
                     <Calendar className="w-4 h-4" />
                     <span>{album?.year || "Unknown Year"}</span>
@@ -500,7 +651,7 @@ export default function AlbumPage() {
                     <span>
                       {allSongs.length} songs
                       {hasMore && (
-                        <span className="text-purple-400 ml-1">
+                        <span className="text-purple-600 dark:text-purple-400 ml-1">
                           (More available)
                         </span>
                       )}
@@ -508,11 +659,11 @@ export default function AlbumPage() {
                   </div>
                 </div>
 
-                {/* Action Buttons */}
+                {/* Enhanced Action Buttons */}
                 <div className="flex flex-wrap items-center justify-center md:justify-start gap-3 md:gap-4 pt-2 md:pt-4">
                   <button
                     onClick={() => handlePlayAlbum(true)}
-                    className="group flex items-center gap-2 md:gap-3 bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-500 hover:to-pink-500 px-6 md:px-8 py-2.5 md:py-3 rounded-full font-semibold text-sm md:text-base transition-all duration-300 hover:scale-105 shadow-lg shadow-purple-500/25"
+                    className="group flex items-center gap-2 md:gap-3 bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-500 hover:to-pink-500 px-6 md:px-8 py-2.5 md:py-3 rounded-full font-semibold text-sm md:text-base transition-all duration-300 hover:scale-105 shadow-lg shadow-purple-500/25 text-white"
                   >
                     {isPlaying && isCurrentAlbum ? (
                       <Pause className="w-4 h-4 md:w-5 md:h-5" />
@@ -522,24 +673,92 @@ export default function AlbumPage() {
                     {isPlaying && isCurrentAlbum ? "Pause" : "Play Album"}
                   </button>
 
-                  <button className="px-4 md:px-6 py-2.5 md:py-3 rounded-full font-semibold text-sm md:text-base transition-all duration-300 bg-transparent border border-white/20 hover:border-white/40">
+                  <button className="px-4 md:px-6 py-2.5 md:py-3 rounded-full font-semibold text-sm md:text-base transition-all duration-300 bg-transparent border border-gray-300 dark:border-white/20 hover:border-purple-500 dark:hover:border-purple-400 hover:bg-purple-50 dark:hover:bg-purple-900/20">
                     Save
                   </button>
 
                   <div className="flex items-center gap-2">
-                    <button className="p-2 md:p-3 rounded-full bg-white/10 hover:bg-white/20 transition-colors duration-300 group">
-                      <Heart className="w-4 h-4 md:w-5 md:h-5 group-hover:text-purple-400" />
+                    <button className="p-2 md:p-3 rounded-full bg-gray-100 dark:bg-white/10 hover:bg-gray-200 dark:hover:bg-white/20 transition-colors duration-300 group">
+                      <Heart className="w-4 h-4 md:w-5 md:h-5 group-hover:text-purple-600 dark:group-hover:text-purple-400" />
                     </button>
 
-                    <button className="p-2 md:p-3 rounded-full bg-white/10 hover:bg-white/20 transition-colors duration-300">
+                    <button className="p-2 md:p-3 rounded-full bg-gray-100 dark:bg-white/10 hover:bg-gray-200 dark:hover:bg-white/20 transition-colors duration-300">
                       <Share2 className="w-4 h-4 md:w-5 md:h-5" />
                     </button>
 
-                    <button className="p-2 md:p-3 rounded-full bg-white/10 hover:bg-white/20 transition-colors duration-300">
-                      <Download className="w-4 h-4 md:w-5 md:h-5" />
+                    <button
+                      onClick={handleDownloadPlaylist}
+                      disabled={
+                        playlistDownload.isDownloading || allSongs.length === 0
+                      }
+                      className={`
+                        relative flex items-center justify-center gap-2 md:gap-3 
+                        px-4 md:px-6 py-3 md:py-3.5 
+                        rounded-full font-semibold text-sm md:text-base 
+                        transition-all duration-300 
+                        min-w-[140px] md:min-w-[160px]
+                        text-white
+                        ${
+                          playlistDownload.isDownloading
+                            ? "bg-gradient-to-r from-blue-600 to-cyan-600 cursor-not-allowed"
+                            : "bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-500 hover:to-emerald-500 hover:scale-105"
+                        }
+                        ${allSongs.length === 0 ? "opacity-50 cursor-not-allowed" : ""}
+                        shadow-lg shadow-green-500/25
+                        active:scale-95 md:active:scale-105
+                        touch-manipulation
+                      `}
+                    >
+                      {playlistDownload.isDownloading ? (
+                        <>
+                          <div className="w-4 h-4 md:w-5 md:h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                          <span className="font-medium">Downloading...</span>
+                        </>
+                      ) : (
+                        <>
+                          <Download className="w-4 h-4 md:w-5 md:h-5" />
+                          <span>Download All</span>
+                          {allSongs.length > 0 && (
+                            <span className="text-xs opacity-75">
+                              ({allSongs.length})
+                            </span>
+                          )}
+                        </>
+                      )}
                     </button>
 
-                    <button className="p-2 md:p-3 rounded-full bg-white/10 hover:bg-white/20 transition-colors duration-300">
+                    <PlaylistDownloadProgress
+                      isVisible={
+                        showProgressDialog && playlistDownload.isDownloading
+                      }
+                      currentSong={playlistDownload.currentSong || 0}
+                      totalSongs={playlistDownload.totalSongs || 0}
+                      currentSongProgress={
+                        playlistDownload.currentSongProgress || 0
+                      }
+                      currentSongStatus={
+                        playlistDownload.currentSongStatus || ""
+                      }
+                      overallProgress={playlistDownload.overallProgress || 0}
+                      currentSongName={playlistDownload.currentSongName || ""}
+                      errors={playlistDownload.errors || []}
+                      onClose={() => setShowProgressDialog(false)}
+                      onCancel={() => {
+                        cancelPlaylistDownload();
+                        setShowProgressDialog(false);
+                      }}
+                    />
+
+                    <MinimizedProgressIndicator
+                      playlistDownload={playlistDownload}
+                      onExpand={() => setShowProgressDialog(true)}
+                      onCancel={() => {
+                        cancelPlaylistDownload();
+                        setShowProgressDialog(false);
+                      }}
+                    />
+
+                    <button className="p-2 md:p-3 rounded-full bg-gray-100 dark:bg-white/10 hover:bg-gray-200 dark:hover:bg-white/20 transition-colors duration-300">
                       <MoreHorizontal className="w-4 h-4 md:w-5 md:h-5" />
                     </button>
                   </div>
@@ -549,26 +768,26 @@ export default function AlbumPage() {
           </div>
         </div>
 
-        {/* Songs List */}
+        {/* Enhanced Songs List */}
         <div className="max-w-7xl mx-auto px-4 md:px-6 pb-32">
-          {/* List Header */}
+          {/* Enhanced List Header */}
           <div
-            className={`sticky bg-gradient-to-b from-black/90 to-black/60 backdrop-blur-xl -mx-4 md:-mx-6 px-4 md:px-6 py-3 md:py-4 mb-3 md:mb-4 border-b border-white/10 z-40 ${
+            className={`sticky bg-gradient-to-b from-white/95 to-white/80 dark:from-black/90 dark:to-black/60 backdrop-blur-xl -mx-4 md:-mx-6 px-4 md:px-6 py-3 md:py-4 mb-3 md:mb-4 border-b border-gray-200/50 dark:border-white/10 z-40 ${
               scrolled ? "top-16 md:top-32" : "top-16 md:top-32"
             }`}
           >
             <div className="flex items-center justify-between mb-3 md:mb-4">
               <h2 className="text-xl md:text-2xl font-bold">
                 Songs ({allSongs.length}
-                {hasMore && <span className="text-purple-400">+</span>})
+                {hasMore && <span className="text-purple-600 dark:text-purple-400">+</span>})
               </h2>
               <div className="flex items-center gap-2 md:gap-3">
                 <button
                   onClick={handleShuffleToggle}
                   className={`p-2 rounded-full transition-colors duration-300 ${
                     isShuffleOn
-                      ? "text-purple-400 bg-white/10"
-                      : "text-gray-400 hover:bg-white/10 hover:text-white"
+                      ? "text-purple-600 dark:text-purple-400 bg-gray-100 dark:bg-white/10"
+                      : "text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-white/10 hover:text-gray-900 dark:hover:text-white"
                   }`}
                 >
                   <Shuffle className="w-4 h-4" />
@@ -577,13 +796,13 @@ export default function AlbumPage() {
                   onClick={handleRepeatToggle}
                   className={`p-2 rounded-full transition-colors duration-300 relative ${
                     repeatMode !== "off"
-                      ? "text-purple-400 bg-white/10"
-                      : "text-gray-400 hover:bg-white/10 hover:text-white"
+                      ? "text-purple-600 dark:text-purple-400 bg-gray-100 dark:bg-white/10"
+                      : "text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-white/10 hover:text-gray-900 dark:hover:text-white"
                   }`}
                 >
                   <Repeat className="w-4 h-4" />
                   {repeatMode === "one" && (
-                    <span className="absolute -bottom-1 -right-1 text-xs text-purple-400 bg-black rounded-full w-4 h-4 flex items-center justify-center">
+                    <span className="absolute -bottom-1 -right-1 text-xs text-purple-600 dark:text-purple-400 bg-white dark:bg-black rounded-full w-4 h-4 flex items-center justify-center">
                       1
                     </span>
                   )}
@@ -592,7 +811,7 @@ export default function AlbumPage() {
             </div>
 
             {/* Desktop Table Header */}
-            <div className="hidden md:grid grid-cols-12 gap-4 text-sm text-gray-400 font-medium">
+            <div className="hidden md:grid grid-cols-12 gap-4 text-sm text-gray-500 dark:text-gray-400 font-medium">
               <div className="col-span-1">#</div>
               <div className="col-span-6">Title</div>
               <div className="col-span-3">Artist</div>
@@ -603,7 +822,7 @@ export default function AlbumPage() {
             </div>
           </div>
 
-          {/* Songs */}
+          {/* Enhanced Songs */}
           <div className="space-y-1 md:space-y-2">
             {allSongs.map((song, index) => {
               const isLastElement = index === allSongs.length - 1;
@@ -613,18 +832,18 @@ export default function AlbumPage() {
                   key={song.id}
                   ref={isLastElement ? lastElementRef : null}
                   className={`group rounded-xl transition-all duration-300 ${
-                    currentSong?.id === song.id ? "bg-white/10" : ""
-                  } hover:bg-white/5`}
+                    currentSong?.id === song.id ? "bg-purple-50 dark:bg-white/10" : ""
+                  } hover:bg-gray-50 dark:hover:bg-white/5`}
                 >
-                  {/* Mobile Layout */}
+                  {/* Enhanced Mobile Layout */}
                   <div className="md:hidden flex items-center gap-3 p-3">
                     {/* Track Number / Play Button */}
                     <div className="relative flex items-center justify-center w-8">
                       <span
                         className={`text-sm font-medium group-hover:opacity-0 transition-opacity duration-200 ${
                           currentSong?.id === song.id
-                            ? "text-purple-400"
-                            : "text-gray-400"
+                            ? "text-purple-600 dark:text-purple-400"
+                            : "text-gray-500 dark:text-gray-400"
                         }`}
                       >
                         {index + 1}
@@ -634,15 +853,15 @@ export default function AlbumPage() {
                         className="absolute opacity-0 group-hover:opacity-100 transition-opacity duration-200 w-8 h-8 flex items-center justify-center"
                       >
                         {currentSong?.id === song.id && isPlaying ? (
-                          <Pause className="w-4 h-4 text-white" />
+                          <Pause className="w-4 h-4 text-gray-900 dark:text-white" />
                         ) : (
-                          <Play className="w-4 h-4 text-white ml-0.5" />
+                          <Play className="w-4 h-4 text-gray-900 dark:text-white ml-0.5" />
                         )}
                       </button>
                     </div>
 
                     {/* Song Art */}
-                    <div className="relative w-12 h-12 rounded-lg overflow-hidden bg-gradient-to-br from-gray-700 to-gray-600 flex-shrink-0">
+                    <div className="relative w-12 h-12 rounded-lg overflow-hidden bg-gradient-to-br from-gray-200 to-gray-300 dark:from-gray-700 dark:to-gray-600 flex-shrink-0">
                       <Image
                         src={song.image?.[2]?.url || "/placeholder-song.jpg"}
                         alt={song.name}
@@ -673,43 +892,59 @@ export default function AlbumPage() {
                     {/* Song Info */}
                     <div className="flex-1 min-w-0">
                       <h3
-                        className={`font-semibold text-sm truncate cursor-pointer${
+                        className={`font-semibold text-sm truncate cursor-pointer ${
                           currentSong?.id === song.id
-                            ? "text-purple-400"
-                            : "text-white"
+                            ? "text-purple-600 dark:text-purple-400"
+                            : "text-gray-900 dark:text-white"
                         }`}
                         onClick={() => handlePlayPause(song.id)}
                       >
                         {song.name}
                       </h3>
-                      <p className="text-xs text-gray-400 truncate">
+                      <p className="text-xs text-gray-500 dark:text-gray-400 truncate">
                         {song.artists?.primary
                           ?.map((artist) => artist.name)
                           .join(", ") ||
                           album?.artist ||
-                          "Various artist"}
+                          "Various Artists"}
                       </p>
                     </div>
 
                     {/* Duration & Actions */}
                     <div className="flex items-center gap-2">
-                      <span className="text-xs text-gray-400">
+                      <span className="text-xs text-gray-500 dark:text-gray-400">
                         {song.duration
                           ? Math.floor(song.duration / 60) +
                             ":" +
                             String(song.duration % 60).padStart(2, "0")
                           : "--:--"}
                       </span>
-                      <button
-                        onClick={() => handleLike(song.id)}
-                        className="p-1.5 rounded-full hover:bg-white/10 transition-colors duration-200 text-gray-400 hover:text-white opacity-100 md:opacity-0 md:group-hover:opacity-100"
-                      >
-                        <Heart className="w-4 h-4" />
-                      </button>
+                      
+                      {/* Download Button - Mobile */}
+                      <div className="min-w-[80px] flex justify-end">
+                        {getDownloadState(song.id) ? (
+                          <DownloadProgress
+                            progress={getDownloadState(song.id).progress}
+                            status={getDownloadState(song.id).status}
+                            error={getDownloadState(song.id).error}
+                            onCancel={() => cancelDownload(song.id)}
+                            onComplete={() => clearDownloadState(song.id)}
+                            isMobile={true}
+                          />
+                        ) : (
+                          <button
+                            onClick={() => handleDownloadSong(song)}
+                            className="w-8 h-8 rounded-full bg-gray-100 dark:bg-white/10 hover:bg-gray-200 dark:hover:bg-white/20 active:bg-gray-300 dark:active:bg-white/30 transition-all duration-200 flex items-center justify-center text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white"
+                            title="Download"
+                          >
+                            <Download className="w-3.5 h-3.5" />
+                          </button>
+                        )}
+                      </div>
                     </div>
                   </div>
 
-                  {/* Desktop Layout */}
+                  {/* Enhanced Desktop Layout */}
                   <div className="hidden md:grid grid-cols-12 gap-4 items-center p-3">
                     {/* Track Number / Play Button */}
                     <div className="col-span-1">
@@ -717,8 +952,8 @@ export default function AlbumPage() {
                         <span
                           className={`text-sm font-medium group-hover:opacity-0 transition-opacity duration-200 ${
                             currentSong?.id === song.id
-                              ? "text-purple-400"
-                              : "text-gray-400"
+                              ? "text-purple-600 dark:text-purple-400"
+                              : "text-gray-500 dark:text-gray-400"
                           }`}
                         >
                           {index + 1}
@@ -728,9 +963,9 @@ export default function AlbumPage() {
                           className="absolute opacity-0 group-hover:opacity-100 transition-opacity duration-200 w-8 h-8 flex items-center justify-center"
                         >
                           {currentSong?.id === song.id && isPlaying ? (
-                            <Pause className="w-4 h-4 text-white" />
+                            <Pause className="w-4 h-4 text-gray-900 dark:text-white" />
                           ) : (
-                            <Play className="w-4 h-4 text-white ml-0.5" />
+                            <Play className="w-4 h-4 text-gray-900 dark:text-white ml-0.5" />
                           )}
                         </button>
                       </div>
@@ -738,7 +973,7 @@ export default function AlbumPage() {
 
                     {/* Song Info */}
                     <div className="col-span-6 flex items-center gap-4">
-                      <div className="relative w-12 h-12 rounded-lg overflow-hidden bg-gradient-to-br from-gray-700 to-gray-600 flex-shrink-0">
+                      <div className="relative w-12 h-12 rounded-lg overflow-hidden bg-gradient-to-br from-gray-200 to-gray-300 dark:from-gray-700 dark:to-gray-600 flex-shrink-0">
                         <Image
                           src={song.image?.[2]?.url || "/placeholder-song.jpg"}
                           alt={song.name}
@@ -775,34 +1010,34 @@ export default function AlbumPage() {
                         <h3
                           className={`font-semibold cursor-pointer ${
                             currentSong?.id === song.id
-                              ? "text-purple-400"
-                              : "text-white"
+                              ? "text-purple-600 dark:text-purple-400"
+                              : "text-gray-900 dark:text-white"
                           }`}
                           onClick={() => handlePlayPause(song.id)}
                         >
                           {song.name}
                         </h3>
-                        <p className="text-sm text-gray-400">
+                        <p className="text-sm text-gray-500 dark:text-gray-400">
                           {song.artists?.primary
                             ?.map((artist) => artist.name)
                             .join(", ") ||
                             album?.artist ||
-                            "Various artist"}
+                            "Various Artists"}
                         </p>
                       </div>
                     </div>
 
                     {/* Artist */}
-                    <div className="col-span-3 text-sm text-gray-400">
+                    <div className="col-span-3 text-sm text-gray-500 dark:text-gray-400">
                       {song?.artists?.all
                         ?.map((artist) => artist.name)
                         .join(", ") ||
                         album?.artist ||
-                        "Various artist"}
+                        "Various Artists"}
                     </div>
 
                     {/* Duration */}
-                    <div className="col-span-1 text-sm text-gray-400">
+                    <div className="col-span-1 text-sm text-gray-500 dark:text-gray-400">
                       {song.duration
                         ? Math.floor(song.duration / 60) +
                           ":" +
@@ -811,16 +1046,27 @@ export default function AlbumPage() {
                     </div>
 
                     {/* Actions */}
-                    <div className="col-span-1 flex items-center justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
-                      <button
-                        onClick={() => handleLike(song.id)}
-                        className="p-2 rounded-full hover:bg-white/10 transition-colors duration-200 text-gray-400 hover:text-white"
-                      >
-                        <Heart className="w-4 h-4" />
-                      </button>
-                      <button className="p-2 rounded-full hover:bg-white/10 transition-colors duration-200 text-gray-400 hover:text-white">
-                        <MoreHorizontal className="w-4 h-4" />
-                      </button>
+                    <div className="col-span-1 flex justify-center">
+                      <div className="min-w-[100px] flex justify-center">
+                        {getDownloadState(song.id) ? (
+                          <DownloadProgress
+                            progress={getDownloadState(song.id).progress}
+                            status={getDownloadState(song.id).status}
+                            error={getDownloadState(song.id).error}
+                            onCancel={() => cancelDownload(song.id)}
+                            onComplete={() => clearDownloadState(song.id)}
+                            isMobile={false}
+                          />
+                        ) : (
+                          <button
+                            onClick={() => handleDownloadSong(song)}
+                            className="w-9 h-9 rounded-full bg-gray-100 dark:bg-white/10 hover:bg-gray-200 dark:hover:bg-white/20 hover:scale-105 active:scale-95 transition-all duration-200 flex items-center justify-center text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white"
+                            title="Download"
+                          >
+                            <Download className="w-4 h-4" />
+                          </button>
+                        )}
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -833,17 +1079,19 @@ export default function AlbumPage() {
             )}
           </div>
 
-          {/* No more results */}
+          {/* Enhanced No more results */}
           {!hasMore && allSongs.length > 0 && (
             <div className="text-center py-8 md:py-12">
-              <div className="text-gray-400 text-sm md:text-base">
-                🎵 You&apos;ve reached the end of the album!
+              <div className="bg-white/90 dark:bg-gray-900/90 backdrop-blur-xl rounded-2xl border border-gray-200/60 dark:border-gray-700/60 p-6 max-w-md mx-auto shadow-xl">
+                <div className="text-gray-600 dark:text-gray-300 text-sm md:text-base font-medium">
+                  🎵 You've reached the end of the album!
+                </div>
               </div>
             </div>
           )}
         </div>
 
-        {/* Queue Overlay (Mobile & Desktop) - Same as playlist */}
+        {/* Enhanced Queue Overlay */}
         <Queue
           isVisible={showQueue}
           onClose={() => dispatch(setShowQueue(false))}

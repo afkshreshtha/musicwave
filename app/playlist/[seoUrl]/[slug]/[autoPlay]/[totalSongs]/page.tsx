@@ -38,7 +38,7 @@ import {
   setRepeatMode,
   startPlaylist,
 } from "@/redux/features/musicPlayerSlice";
-import Navbar from "@/components/navbar";
+
 import Image from "next/image";
 import usePlaylist from "@/hooks/usePlaylist";
 import useQueue from "@/hooks/useQueue";
@@ -404,7 +404,7 @@ const SongDetails = () => {
   if ((loading && page === 1) || playlistLoading) {
     return (
       <>
-        <Navbar />
+       
         <div className="min-h-screen bg-gradient-to-br from-purple-50 to-pink-50 dark:from-gray-900 dark:to-gray-800 text-white relative overflow-hidden">
           <div className="fixed inset-0 bg-gradient-to-br from-purple-900/20 via-pink-900/10 to-blue-900/20 pointer-events-none"></div>
 
@@ -444,7 +444,7 @@ const SongDetails = () => {
   if (error || playlistError) {
     return (
       <>
-        <Navbar />
+       
         <div className="min-h-screen bg-gradient-to-br from-purple-50 to-pink-50 dark:from-gray-900 dark:to-gray-800 text-white flex items-center justify-center px-4">
           <div className="text-center">
             <p className="text-lg md:text-xl text-red-400 mb-4">
@@ -464,7 +464,7 @@ const SongDetails = () => {
 
   return (
     <>
-      <Navbar />
+   
       <div className="min-h-screen bg-gradient-to-br from-purple-50 to-pink-50 dark:from-gray-900 dark:to-gray-800 text-white relative overflow-hidden">
         {/* Background Effects */}
         <div className="fixed inset-0 bg-gradient-to-br from-purple-900/20 via-pink-900/10 to-blue-900/20 pointer-events-none"></div>

@@ -1,7 +1,7 @@
 "use client";
 
 import GenreSelector from "@/components/genreselector";
-import Navbar from "@/components/navbar";
+
 import { useGetTracksByGenreQuery } from "@/redux/features/api/musicApi";
 
 import Image from "next/image";
@@ -20,40 +20,40 @@ const MusicLoadingAnimation = ({ count = 10 }) => {
           className="group relative"
           style={{ animationDelay: `${index * 100}ms` }}
         >
-          {/* Main card skeleton with glassmorphism */}
-          <div className="relative bg-white/60 dark:bg-white/5 backdrop-blur-xl rounded-2xl sm:rounded-3xl border border-gray-200/40 dark:border-white/10 overflow-hidden shadow-lg dark:shadow-none animate-pulse">
+          {/* Fixed aspect ratio for consistent sizing */}
+          <div className="relative bg-white/80 dark:bg-gray-900/80 backdrop-blur-2xl rounded-3xl border border-gray-200/50 dark:border-gray-700/50 overflow-hidden shadow-xl dark:shadow-2xl dark:shadow-purple-500/10 animate-pulse aspect-square">
             {/* Animated gradient background */}
-            <div className="absolute inset-0 bg-gradient-to-br from-purple-500/10 via-pink-500/5 to-blue-500/10 dark:from-purple-500/20 dark:via-pink-500/10 dark:to-blue-500/20 animate-pulse"></div>
+            <div className="absolute inset-0 bg-gradient-to-br from-purple-500/10 via-pink-500/5 to-blue-500/10 dark:from-purple-500/20 dark:via-pink-500/15 dark:to-blue-500/20 animate-pulse"></div>
 
-            {/* Floating glow effect */}
-            <div className="absolute -inset-1 bg-gradient-to-r from-purple-500/20 via-pink-500/20 to-blue-500/20 rounded-2xl sm:rounded-3xl blur-lg opacity-50 animate-pulse"></div>
+            {/* Enhanced glow effect */}
+            <div className="absolute -inset-2 bg-gradient-to-r from-purple-500/20 via-pink-500/20 to-blue-500/20 dark:from-purple-400/30 dark:via-pink-400/30 dark:to-blue-400/30 rounded-3xl blur-xl opacity-60 animate-pulse"></div>
 
-            <div className="relative p-2 sm:p-3 md:p-4">
-              {/* Album artwork skeleton */}
-              <div className="relative mb-3 sm:mb-4">
-                {/* Image skeleton with music visualizer effect */}
-                <div className="relative overflow-hidden rounded-xl sm:rounded-2xl bg-gradient-to-br from-gray-100 to-gray-200 dark:from-gray-700 dark:to-gray-600 aspect-square">
-                  {/* Music visualizer bars */}
-                  <div className="absolute inset-0 flex items-end justify-center gap-1 p-2 sm:p-3 md:p-4">
-                    {[...Array(6)].map((_, i) => (
+            <div className="relative p-3 sm:p-4 md:p-5 flex flex-col justify-between h-full">
+              {/* Album artwork skeleton - takes up most space */}
+              <div className="relative mb-3 sm:mb-4 flex-grow">
+                {/* Image skeleton with enhanced music visualizer */}
+                <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-gray-100 to-gray-200 dark:from-gray-800 dark:to-gray-700 aspect-square shadow-inner">
+                  {/* Enhanced music visualizer bars */}
+                  <div className="absolute inset-0 flex items-end justify-center gap-1 p-4 sm:p-5">
+                    {[...Array(7)].map((_, i) => (
                       <div
                         key={i}
-                        className="bg-gradient-to-t from-purple-500/80 to-pink-500/80 rounded-sm animate-bounce"
+                        className="bg-gradient-to-t from-purple-500 via-pink-500 to-blue-500 dark:from-purple-400 dark:via-pink-400 dark:to-blue-400 rounded-sm animate-bounce shadow-sm"
                         style={{
-                          width: "4px",
-                          height: `${Math.random() * 30 + 15}%`,
-                          animationDelay: `${i * 200}ms`,
-                          animationDuration: `${Math.random() * 500 + 800}ms`,
+                          width: "3px",
+                          height: `${Math.random() * 40 + 20}%`,
+                          animationDelay: `${i * 150}ms`,
+                          animationDuration: `${Math.random() * 600 + 700}ms`,
                         }}
                       ></div>
                     ))}
                   </div>
 
-                  {/* Pulsing music note overlay */}
+                  {/* Enhanced pulsing music note overlay */}
                   <div className="absolute inset-0 flex items-center justify-center">
-                    <div className="bg-white/20 dark:bg-white/10 backdrop-blur-sm rounded-full p-2 sm:p-3 animate-pulse">
+                    <div className="bg-white/30 dark:bg-gray-800/40 backdrop-blur-md rounded-full p-3 sm:p-4 animate-pulse shadow-lg">
                       <svg
-                        className="w-4 h-4 sm:w-5 sm:h-5 md:w-6 md:h-6 text-purple-500 dark:text-purple-400"
+                        className="w-5 h-5 sm:w-6 sm:h-6 md:w-7 md:h-7 text-purple-600 dark:text-purple-400"
                         fill="currentColor"
                         viewBox="0 0 24 24"
                       >
@@ -62,46 +62,46 @@ const MusicLoadingAnimation = ({ count = 10 }) => {
                     </div>
                   </div>
 
-                  {/* Animated wave effect */}
+                  {/* Enhanced wave effects */}
                   <div className="absolute inset-0">
-                    <div className="absolute inset-x-0 bottom-0 h-1 bg-gradient-to-r from-purple-500 via-pink-500 to-blue-500 animate-pulse"></div>
+                    <div className="absolute inset-x-0 bottom-0 h-1.5 bg-gradient-to-r from-purple-500 via-pink-500 to-blue-500 dark:from-purple-400 dark:via-pink-400 dark:to-blue-400 animate-pulse rounded-t"></div>
                     <div
-                      className="absolute inset-x-0 bottom-1 h-0.5 bg-gradient-to-r from-blue-500 via-purple-500 to-pink-500 animate-pulse"
+                      className="absolute inset-x-0 bottom-1.5 h-1 bg-gradient-to-r from-blue-500 via-purple-500 to-pink-500 dark:from-blue-400 dark:via-purple-400 dark:to-pink-400 animate-pulse rounded-t opacity-70"
                       style={{ animationDelay: "500ms" }}
                     ></div>
                   </div>
 
-                  {/* Shimmer effect */}
-                  <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/30 dark:via-white/20 to-transparent animate-shimmer"></div>
+                  {/* Enhanced shimmer effect */}
+                  <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/40 dark:via-gray-300/20 to-transparent animate-shimmer"></div>
                 </div>
 
-                {/* Corner pulsing dot */}
-                <div className="absolute top-1 right-1 sm:top-2 sm:right-2 w-2 h-2 sm:w-3 sm:h-3 bg-gradient-to-r from-purple-500 to-pink-500 rounded-full animate-ping"></div>
+                {/* Enhanced corner indicator */}
+                <div className="absolute top-2 right-2 w-3 h-3 sm:w-4 sm:h-4 bg-gradient-to-r from-purple-500 to-pink-500 dark:from-purple-400 dark:to-pink-400 rounded-full animate-ping shadow-lg"></div>
               </div>
 
-              {/* Content skeleton */}
+              {/* Content skeleton - fixed height */}
               <div className="text-center space-y-2 sm:space-y-3">
                 {/* Title skeleton */}
-                <div className="space-y-1 sm:space-y-2">
-                  <div className="h-2.5 sm:h-3 bg-gradient-to-r from-gray-200 to-gray-300 dark:from-gray-600 dark:to-gray-500 rounded-full animate-pulse"></div>
+                <div className="space-y-1.5">
+                  <div className="h-3 sm:h-4 bg-gradient-to-r from-gray-200 to-gray-300 dark:from-gray-600 dark:to-gray-500 rounded-full animate-pulse"></div>
                   <div
-                    className="h-2.5 sm:h-3 bg-gradient-to-r from-gray-200 to-gray-300 dark:from-gray-600 dark:to-gray-500 rounded-full w-3/4 mx-auto animate-pulse"
+                    className="h-3 sm:h-4 bg-gradient-to-r from-gray-200 to-gray-300 dark:from-gray-600 dark:to-gray-500 rounded-full w-3/4 mx-auto animate-pulse"
                     style={{ animationDelay: "200ms" }}
                   ></div>
                 </div>
 
                 {/* Artist skeleton */}
                 <div
-                  className="h-2 sm:h-2.5 bg-gradient-to-r from-gray-100 to-gray-200 dark:from-gray-700 dark:to-gray-600 rounded-full w-1/2 mx-auto animate-pulse"
+                  className="h-2.5 sm:h-3 bg-gradient-to-r from-gray-100 to-gray-200 dark:from-gray-700 dark:to-gray-600 rounded-full w-1/2 mx-auto animate-pulse"
                   style={{ animationDelay: "400ms" }}
                 ></div>
 
-                {/* Rating skeleton */}
-                <div className="flex items-center justify-center gap-1">
+                {/* Enhanced rating skeleton */}
+                <div className="flex items-center justify-center gap-1.5">
                   {[...Array(5)].map((_, i) => (
                     <div
                       key={i}
-                      className="w-1 h-1 sm:w-1.5 sm:h-1.5 rounded-full bg-gradient-to-r from-yellow-400/50 to-orange-500/50 animate-pulse"
+                      className="w-2 h-2 sm:w-2.5 sm:h-2.5 rounded-full bg-gradient-to-r from-yellow-400/60 to-orange-500/60 dark:from-yellow-300/50 dark:to-orange-400/50 animate-pulse"
                       style={{ animationDelay: `${600 + i * 100}ms` }}
                     ></div>
                   ))}
@@ -109,22 +109,22 @@ const MusicLoadingAnimation = ({ count = 10 }) => {
               </div>
             </div>
 
-            {/* Bottom animated line */}
-            <div className="absolute bottom-0 left-0 right-0 h-1 bg-gradient-to-r from-purple-500 via-pink-500 to-blue-500 animate-pulse"></div>
+            {/* Enhanced bottom animated line */}
+            <div className="absolute bottom-0 left-0 right-0 h-1.5 bg-gradient-to-r from-purple-500 via-pink-500 to-blue-500 dark:from-purple-400 dark:via-pink-400 dark:to-blue-400 animate-pulse"></div>
           </div>
 
-          {/* Floating particles */}
+          {/* Enhanced floating particles */}
           <div className="absolute inset-0 pointer-events-none">
             <div
-              className="absolute top-2 left-2 sm:top-4 sm:left-4 w-0.5 h-0.5 sm:w-1 sm:h-1 bg-purple-400 rounded-full animate-ping"
+              className="absolute top-3 left-3 sm:top-5 sm:left-5 w-1 h-1 sm:w-1.5 sm:h-1.5 bg-purple-400 dark:bg-purple-300 rounded-full animate-ping"
               style={{ animationDelay: `${index * 150}ms` }}
             ></div>
             <div
-              className="absolute top-4 right-3 sm:top-8 sm:right-6 w-0.5 h-0.5 sm:w-1 sm:h-1 bg-pink-400 rounded-full animate-ping"
+              className="absolute top-6 right-4 sm:top-10 sm:right-7 w-1 h-1 sm:w-1.5 sm:h-1.5 bg-pink-400 dark:bg-pink-300 rounded-full animate-ping"
               style={{ animationDelay: `${300 + index * 150}ms` }}
             ></div>
             <div
-              className="absolute bottom-6 left-3 sm:bottom-12 sm:left-6 w-0.5 h-0.5 sm:w-1 sm:h-1 bg-blue-400 rounded-full animate-ping"
+              className="absolute bottom-8 left-4 sm:bottom-14 sm:left-7 w-1 h-1 sm:w-1.5 sm:h-1.5 bg-blue-400 dark:bg-blue-300 rounded-full animate-ping"
               style={{ animationDelay: `${600 + index * 150}ms` }}
             ></div>
           </div>
@@ -134,21 +134,21 @@ const MusicLoadingAnimation = ({ count = 10 }) => {
   );
 };
 
-// Infinite Scroll Loading Indicator
+// Enhanced Infinite Scroll Loading Indicator
 const InfiniteLoadingIndicator = () => {
   return (
-    <div className="col-span-full flex justify-center items-center py-6 sm:py-8">
+    <div className="col-span-full flex justify-center items-center py-8 sm:py-10">
       <div className="relative">
-        {/* Spinning vinyl record */}
-        <div className="w-12 h-12 sm:w-14 sm:h-14 md:w-16 md:h-16 rounded-full bg-gradient-to-r from-purple-500 to-pink-500 animate-spin relative">
-          <div className="absolute inset-1.5 sm:inset-2 bg-black rounded-full"></div>
-          <div className="absolute inset-4 sm:inset-5 md:inset-6 bg-gradient-to-r from-purple-500 to-pink-500 rounded-full"></div>
-          <div className="absolute top-1/2 left-1/2 w-1.5 h-1.5 sm:w-2 sm:h-2 bg-white rounded-full transform -translate-x-1/2 -translate-y-1/2"></div>
+        {/* Enhanced spinning vinyl record */}
+        <div className="w-14 h-14 sm:w-16 sm:h-16 md:w-20 md:h-20 rounded-full bg-gradient-to-r from-purple-500 to-pink-500 dark:from-purple-400 dark:to-pink-400 animate-spin relative shadow-xl">
+          <div className="absolute inset-2 bg-gray-900 dark:bg-gray-100 rounded-full shadow-inner"></div>
+          <div className="absolute inset-5 sm:inset-6 md:inset-7 bg-gradient-to-r from-purple-500 to-pink-500 dark:from-purple-400 dark:to-pink-400 rounded-full"></div>
+          <div className="absolute top-1/2 left-1/2 w-2 h-2 sm:w-2.5 sm:h-2.5 bg-white dark:bg-gray-900 rounded-full transform -translate-x-1/2 -translate-y-1/2 shadow-sm"></div>
         </div>
 
-        {/* Loading text */}
-        <div className="absolute -bottom-6 sm:-bottom-8 left-1/2 transform -translate-x-1/2 whitespace-nowrap">
-          <span className="text-xs sm:text-sm text-gray-600 dark:text-gray-400 font-medium">
+        {/* Enhanced loading text */}
+        <div className="absolute -bottom-8 sm:-bottom-10 left-1/2 transform -translate-x-1/2 whitespace-nowrap">
+          <span className="text-sm sm:text-base text-gray-600 dark:text-gray-300 font-medium bg-white/80 dark:bg-gray-900/80 backdrop-blur-sm px-3 py-1 rounded-full border border-gray-200/50 dark:border-gray-700/50">
             Loading more tracks...
           </span>
         </div>
@@ -164,16 +164,16 @@ export default function Home() {
   const [hasMore, setHasMore] = useState(true);
   const observerRef = useRef(null);
   const { currentSong } = useSelector((state) => state.player);
-  const [loadingCount,setLoadingCount] = useState(12)
+  const [loadingCount, setLoadingCount] = useState(12);
 
-  useEffect(()=>{
-    const updateLoadingCount = () =>{
-      setLoadingCount(window.innerWidth < 640 ? 12 : 20)
-    }
+  useEffect(() => {
+    const updateLoadingCount = () => {
+      setLoadingCount(window.innerWidth < 640 ? 12 : 20);
+    };
     updateLoadingCount();
-    window.addEventListener('resize', updateLoadingCount)
-    return () => window.removeEventListener('resize', updateLoadingCount);
-  },[])
+    window.addEventListener("resize", updateLoadingCount);
+    return () => window.removeEventListener("resize", updateLoadingCount);
+  }, []);
 
   // Get tracks with pagination
   const {
@@ -215,7 +215,7 @@ export default function Home() {
         },
         {
           threshold: 0.1,
-          rootMargin: "50px", // Reduced for mobile
+          rootMargin: "50px",
         }
       );
 
@@ -232,17 +232,19 @@ export default function Home() {
   if (playlistsLoading && currentPage === 1) {
     return (
       <>
-        <Navbar />
-        <main className="px-3 sm:px-4 md:px-6 lg:px-8 py-4 sm:py-6 pb-24">
+       
+        <main className="min-h-screen bg-gradient-to-br from-gray-50 via-white to-gray-100 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900 px-3 sm:px-4 md:px-6 lg:px-8 py-4 sm:py-6 pb-24">
           <div className="max-w-7xl mx-auto">
-            <h1 className="text-xl sm:text-2xl md:text-3xl font-bold mb-2">
-              Discover Music
-            </h1>
-            <p className="text-sm sm:text-base text-muted-foreground mb-4 sm:mb-6">
-              Choose your genre and vibe with the best tracks
-            </p>
+            <div className="mb-8 sm:mb-10">
+              <h1 className="text-2xl sm:text-3xl md:text-4xl font-bold mb-3 bg-gradient-to-r from-purple-600 via-pink-600 to-blue-600 dark:from-purple-400 dark:via-pink-400 dark:to-blue-400 bg-clip-text text-transparent">
+                Discover Music
+              </h1>
+              <p className="text-base sm:text-lg text-gray-600 dark:text-gray-300 mb-6 sm:mb-8">
+                Choose your genre and vibe with the best tracks
+              </p>
+            </div>
             <GenreSelector onSelect={handleGenreChange} />
-            <div className="mt-6 sm:mt-8 md:mt-12">
+            <div className="mt-8 sm:mt-10 md:mt-12">
               <MusicLoadingAnimation count={loadingCount} />
             </div>
           </div>
@@ -253,19 +255,21 @@ export default function Home() {
 
   return (
     <>
-      <Navbar />
-      <main className="px-3 sm:px-4 md:px-6 lg:px-8 py-4 sm:py-6 pb-24">
+   
+      <main className="min-h-screen bg-gradient-to-br from-gray-50 via-white to-gray-100 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900 px-3 sm:px-4 md:px-6 lg:px-8 py-4 sm:py-6 pb-24">
         <div className="max-w-7xl mx-auto">
-          <h1 className="text-xl sm:text-2xl md:text-3xl font-bold mb-2">
-            Discover Music
-          </h1>
-          <p className="text-sm sm:text-base text-muted-foreground mb-4 sm:mb-6">
-            Choose your genre and vibe with the best tracks
-          </p>
+          <div className="mb-8 sm:mb-10">
+            <h1 className="text-2xl sm:text-3xl md:text-4xl font-bold mb-3 bg-gradient-to-r from-purple-600 via-pink-600 to-blue-600 dark:from-purple-400 dark:via-pink-400 dark:to-blue-400 bg-clip-text text-transparent">
+              Discover Music
+            </h1>
+            <p className="text-base sm:text-lg text-gray-600 dark:text-gray-300 mb-6 sm:mb-8">
+              Choose your genre and vibe with the best tracks
+            </p>
+          </div>
 
           <GenreSelector onSelect={handleGenreChange} />
 
-          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3 sm:gap-4 md:gap-6 mt-6 sm:mt-8 md:mt-12">
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4 sm:gap-5 md:gap-6 mt-8 sm:mt-10 md:mt-12">
             {playlists?.results?.map((item, index) => {
               const isLastElement = index === playlists.results.length - 1;
 
@@ -276,46 +280,47 @@ export default function Home() {
                   className="group relative cursor-pointer touch-manipulation"
                   style={{ animationDelay: `${index * 50}ms` }}
                 >
-                  {/* Card container with glassmorphism */}
-                  <div className="relative bg-white/80 dark:bg-white/5 backdrop-blur-xl rounded-2xl sm:rounded-3xl border border-gray-200/60 dark:border-white/10 overflow-hidden transition-all duration-300 sm:duration-500 hover:scale-105 active:scale-95 sm:hover:-translate-y-1 md:hover:-translate-y-2 hover:shadow-xl sm:hover:shadow-2xl hover:shadow-purple-500/20 shadow-md sm:shadow-lg dark:shadow-none">
-                    {/* Gradient background overlay */}
-                    <div className="absolute inset-0 bg-gradient-to-br from-purple-500/5 via-pink-500/3 to-blue-500/5 dark:from-purple-500/10 dark:via-pink-500/5 dark:to-blue-500/10 opacity-0 group-hover:opacity-100 transition-opacity duration-300 sm:duration-500"></div>
+                  {/* Fixed aspect-square for equal sizing */}
+                  <div className="relative bg-white/90 dark:bg-gray-900/90 backdrop-blur-2xl rounded-3xl border border-gray-200/60 dark:border-gray-700/60 overflow-hidden transition-all duration-500 hover:scale-105 active:scale-95 sm:hover:-translate-y-2 hover:shadow-2xl hover:shadow-purple-500/25 dark:hover:shadow-purple-400/20 shadow-lg dark:shadow-xl dark:shadow-gray-900/50 aspect-auto">
+                    {/* Enhanced gradient overlay */}
+                    <div className="absolute inset-0 bg-gradient-to-br from-purple-500/8 via-pink-500/5 to-blue-500/8 dark:from-purple-500/15 dark:via-pink-500/10 dark:to-blue-500/15 opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
 
-                    {/* Floating glow effect */}
-                    <div className="absolute -inset-1 bg-gradient-to-r from-purple-500/10 via-pink-500/10 to-blue-500/10 dark:from-purple-500/20 dark:via-pink-500/20 dark:to-blue-500/20 rounded-2xl sm:rounded-3xl blur-lg opacity-0 group-hover:opacity-100 transition-opacity duration-300 sm:duration-500"></div>
+                    {/* Enhanced glow effect */}
+                    <div className="absolute -inset-2 bg-gradient-to-r from-purple-500/15 via-pink-500/15 to-blue-500/15 dark:from-purple-400/25 dark:via-pink-400/25 dark:to-blue-400/25 rounded-3xl blur-xl opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
 
-                    <div className="relative p-2 sm:p-3 md:p-4">
-                      {/* Album artwork container */}
-                      <div className="relative mb-3 sm:mb-4 group/image">
-                        {/* Image glow effect */}
-                        <div className="absolute inset-0 bg-gradient-to-br from-purple-500/15 to-pink-500/15 dark:from-purple-500/30 dark:to-pink-500/30 rounded-xl sm:rounded-2xl blur-lg sm:blur-xl opacity-0 group-hover:opacity-60 transition-opacity duration-300 sm:duration-500"></div>
+                    <div className="relative p-3 sm:p-4 md:p-5 flex flex-col justify-between h-full">
+                      {/* Enhanced album artwork container - takes most space */}
+                      <div className="relative mb-3 sm:mb-4 group/image flex-grow">
+                        {/* Enhanced image glow */}
+                        <div className="absolute inset-0 bg-gradient-to-br from-purple-500/20 to-pink-500/20 dark:from-purple-400/30 dark:to-pink-400/30 rounded-2xl blur-xl opacity-0 group-hover:opacity-70 transition-opacity duration-500"></div>
 
-                        {/* Main image */}
-                        <div className="relative overflow-hidden rounded-xl sm:rounded-2xl bg-gradient-to-br from-gray-50 to-gray-100 dark:from-gray-800 dark:to-gray-700 ring-1 ring-gray-200/50 dark:ring-gray-700/50">
+                        {/* Enhanced main image container - square aspect ratio */}
+                        <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-gray-50 to-gray-100 dark:from-gray-800 dark:to-gray-700 ring-1 ring-gray-200/60 dark:ring-gray-600/60 shadow-inner aspect-square ">
                           <Image
                             src={
                               item?.image?.[2]?.url || "/placeholder-album.jpg"
                             }
                             alt={item.name}
-                            width={200}
-                            height={200}
-                            className="w-full aspect-square object-cover transition-all duration-300 sm:duration-500 group-hover:scale-110"
+                            fill
+                            className="object-cover transition-all duration-500 group-hover:scale-110"
                             loading="lazy"
                             sizes="(max-width: 640px) 50vw, (max-width: 768px) 33vw, (max-width: 1024px) 25vw, (max-width: 1280px) 20vw, 16vw"
                           />
 
-                          {/* Play button overlay */}
-                          <div 
+                          {/* Enhanced play button overlay */}
+                          <div
                             onClick={(e) => {
                               e.stopPropagation();
-                              router.push(`${item.seoUrl}/${item.id}/true/${item.songCount}`);
-                            }} 
-                            className="absolute inset-0 bg-black/50 dark:bg-black/40 opacity-0 group-hover:opacity-100 active:opacity-100 transition-all duration-200 sm:duration-300 flex items-center justify-center tap-highlight-transparent"
+                              router.push(
+                                `${item.seoUrl}/${item.id}/true/${item.songCount}`
+                              );
+                            }}
+                            className="absolute inset-0 bg-black/60 dark:bg-black/50 opacity-0 group-hover:opacity-100 active:opacity-100 transition-all duration-300 flex items-center justify-center tap-highlight-transparent"
                           >
-                            <div className="bg-white/20 backdrop-blur-sm rounded-full p-2 sm:p-3 md:p-4 transform scale-75 group-hover:scale-100 active:scale-90 transition-transform duration-200 sm:duration-300">
-                              <div className="w-6 h-6 sm:w-7 sm:h-7 md:w-8 md:h-8 bg-gradient-to-r from-purple-500 to-pink-500 rounded-full flex items-center justify-center">
+                            <div className="bg-white/25 dark:bg-gray-800/40 backdrop-blur-md rounded-full p-3 sm:p-4 md:p-5 transform scale-75 group-hover:scale-100 active:scale-90 transition-transform duration-300 shadow-xl">
+                              <div className="w-7 h-7 sm:w-8 sm:h-8 md:w-10 md:h-10 bg-gradient-to-r from-purple-500 to-pink-500 dark:from-purple-400 dark:to-pink-400 rounded-full flex items-center justify-center shadow-lg">
                                 <svg
-                                  className="w-3 h-3 sm:w-3.5 sm:h-3.5 md:w-4 md:h-4 text-white ml-0.5"
+                                  className="w-4 h-4 sm:w-4.5 sm:h-4.5 md:w-5 md:h-5 text-white ml-0.5"
                                   fill="currentColor"
                                   viewBox="0 0 24 24"
                                 >
@@ -325,88 +330,72 @@ export default function Home() {
                             </div>
                           </div>
 
-                          {/* Shimmer effect */}
-                          <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 dark:via-white/10 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-700 sm:duration-1000 ease-out"></div>
+                          {/* Enhanced shimmer effect */}
+                          <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/30 dark:via-gray-300/15 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-1000 ease-out"></div>
                         </div>
 
-                        {/* Corner accent */}
-                        <div className="absolute top-1 right-1 sm:top-2 sm:right-2 w-2 h-2 sm:w-3 sm:h-3 bg-gradient-to-r from-purple-500 to-pink-500 rounded-full opacity-0 group-hover:opacity-100 transition-opacity duration-300 animate-pulse"></div>
+                        {/* Enhanced corner accent */}
+                        <div className="absolute top-2 right-2 sm:top-3 sm:right-3 w-3 h-3 sm:w-4 sm:h-4 bg-gradient-to-r from-purple-500 to-pink-500 dark:from-purple-400 dark:to-pink-400 rounded-full opacity-0 group-hover:opacity-100 transition-opacity duration-300 animate-pulse shadow-lg"></div>
                       </div>
 
-                      {/* Content section */}
-                      <div className="text-center space-y-1 sm:space-y-2">
-                        {/* Title */}
-                        <h3 className="font-bold text-xs sm:text-sm text-gray-900 dark:text-white group-hover:text-transparent group-hover:bg-gradient-to-r group-hover:from-purple-600 group-hover:to-pink-600 group-hover:bg-clip-text transition-all duration-300 line-clamp-2 leading-tight">
-                          <Link 
+                      {/* Enhanced content section - fixed height at bottom */}
+                      <div className="text-center space-y-1.5 sm:space-y-2">
+                        {/* Enhanced title - limited to 2 lines */}
+                        <h3 className="font-bold text-sm sm:text-base text-gray-900 dark:text-white group-hover:text-transparent group-hover:bg-gradient-to-r group-hover:from-purple-600 group-hover:to-pink-600 dark:group-hover:from-purple-400 dark:group-hover:to-pink-400 group-hover:bg-clip-text transition-all duration-300 line-clamp-2 leading-tight min-h-[2.5rem] sm:min-h-[3rem]">
+                          <Link
                             href={`${item.seoUrl}/${item.id}/false/${item.songCount}`}
                             className="block tap-highlight-transparent"
                           >
                             {item.name}
                           </Link>
                         </h3>
-
-                        {/* Artist name placeholder */}
-                        <p className="text-xs text-gray-600 dark:text-gray-400 group-hover:text-gray-500 dark:group-hover:text-gray-300 transition-colors duration-300">
-                          Various Artists
-                        </p>
-
-                        {/* Rating or popularity indicator */}
-                        <div className="flex items-center justify-center gap-0.5 sm:gap-1 opacity-0 group-hover:opacity-100 transition-opacity duration-300 delay-100">
-                          {[...Array(5)].map((_, i) => (
-                            <div
-                              key={i}
-                              className={`w-1 h-1 sm:w-1.5 sm:h-1.5 rounded-full transition-all duration-300 ${
-                                i < 4
-                                  ? "bg-gradient-to-r from-yellow-400 to-orange-500"
-                                  : "bg-gray-200 dark:bg-gray-600"
-                              }`}
-                              style={{ animationDelay: `${i * 100}ms` }}
-                            ></div>
-                          ))}
-                        </div>
                       </div>
                     </div>
 
-                    {/* Bottom gradient line */}
-                    <div className="absolute bottom-0 left-0 right-0 h-0.5 sm:h-1 bg-gradient-to-r from-purple-500 via-pink-500 to-blue-500 transform scale-x-0 group-hover:scale-x-100 transition-transform duration-300 sm:duration-500 origin-left"></div>
+                    {/* Enhanced bottom gradient line */}
+                    <div className="absolute bottom-0 left-0 right-0 h-1 bg-gradient-to-r from-purple-500 via-pink-500 to-blue-500 dark:from-purple-400 dark:via-pink-400 dark:to-blue-400 transform scale-x-0 group-hover:scale-x-100 transition-transform duration-500 origin-left shadow-sm"></div>
                   </div>
 
-                  {/* Floating particles on hover */}
-                  <div className="absolute inset-0 pointer-events-none opacity-0 group-hover:opacity-100 transition-opacity duration-300 sm:duration-500">
-                    <div className="absolute top-2 left-2 sm:top-4 sm:left-4 w-0.5 h-0.5 sm:w-1 sm:h-1 bg-purple-400 rounded-full animate-ping delay-100"></div>
-                    <div className="absolute top-4 right-3 sm:top-8 sm:right-6 w-0.5 h-0.5 sm:w-1 sm:h-1 bg-pink-400 rounded-full animate-ping delay-300"></div>
-                    <div className="absolute bottom-6 left-3 sm:bottom-12 sm:left-6 w-0.5 h-0.5 sm:w-1 sm:h-1 bg-blue-400 rounded-full animate-ping delay-500"></div>
+                  {/* Enhanced floating particles */}
+                  <div className="absolute inset-0 pointer-events-none opacity-0 group-hover:opacity-100 transition-opacity duration-500">
+                    <div className="absolute top-3 left-3 sm:top-5 sm:left-5 w-1.5 h-1.5 sm:w-2 sm:h-2 bg-purple-400 dark:bg-purple-300 rounded-full animate-ping delay-100 shadow-sm"></div>
+                    <div className="absolute top-6 right-4 sm:top-10 sm:right-7 w-1.5 h-1.5 sm:w-2 sm:h-2 bg-pink-400 dark:bg-pink-300 rounded-full animate-ping delay-300 shadow-sm"></div>
+                    <div className="absolute bottom-8 left-4 sm:bottom-14 sm:left-7 w-1.5 h-1.5 sm:w-2 sm:h-2 bg-blue-400 dark:bg-blue-300 rounded-full animate-ping delay-500 shadow-sm"></div>
                   </div>
                 </div>
               );
             })}
-            
+
             {/* Show infinite loading indicator */}
             {isFetching && currentPage > 1 && hasMore && (
               <InfiniteLoadingIndicator />
             )}
           </div>
 
-          {/* Error state */}
+          {/* Enhanced error state */}
           {isError && (
-            <div className="text-center py-8 sm:py-12">
-              <div className="text-red-500 mb-3 sm:mb-4 text-sm sm:text-base">
-                Failed to load tracks
+            <div className="text-center py-12 sm:py-16">
+              <div className="bg-white/90 dark:bg-gray-900/90 backdrop-blur-xl rounded-2xl border border-gray-200/60 dark:border-gray-700/60 p-6 sm:p-8 max-w-md mx-auto shadow-xl">
+                <div className="text-red-500 dark:text-red-400 mb-4 text-base sm:text-lg font-medium">
+                  Failed to load tracks
+                </div>
+                <button
+                  onClick={() => setCurrentPage(1)}
+                  className="px-6 py-3 bg-gradient-to-r from-purple-500 to-pink-500 dark:from-purple-400 dark:to-pink-400 text-white rounded-xl hover:from-purple-600 hover:to-pink-600 dark:hover:from-purple-500 dark:hover:to-pink-500 active:scale-95 transition-all duration-300 font-medium shadow-lg"
+                >
+                  Try Again
+                </button>
               </div>
-              <button
-                onClick={() => setCurrentPage(1)}
-                className="px-4 py-2 bg-purple-500 text-white rounded-lg hover:bg-purple-600 active:bg-purple-700 transition-colors text-sm sm:text-base"
-              >
-                Try Again
-              </button>
             </div>
           )}
 
-          {/* No more results */}
+          {/* Enhanced no more results */}
           {!hasMore && playlists?.results?.length > 0 && (
-            <div className="text-center py-8 sm:py-12">
-              <div className="text-gray-500 dark:text-gray-400 text-sm sm:text-base">
-                🎵 You&apos;ve reached the end of {selectedGenre} tracks!
+            <div className="text-center py-12 sm:py-16">
+              <div className="bg-white/90 dark:bg-gray-900/90 backdrop-blur-xl rounded-2xl border border-gray-200/60 dark:border-gray-700/60 p-6 sm:p-8 max-w-md mx-auto shadow-xl">
+                <div className="text-gray-600 dark:text-gray-300 text-base sm:text-lg font-medium">
+                  🎵 You've reached the end of {selectedGenre} tracks!
+                </div>
               </div>
             </div>
           )}

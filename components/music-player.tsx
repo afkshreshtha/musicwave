@@ -30,6 +30,9 @@ import Link from "next/link";
 import { useMediaSession } from "@/hooks/useMediaSession";
 import SlideUpModal from "./SlideUpModal";
 import NowPlayingModal from "./NowPlayingModal";
+import DownloadProgress from "./DownloadProgress";
+import { useDownloadProgress } from "@/hooks/useDownloadProgress";
+import { downloadMP4WithMetadata } from "@/utils/download";
 
 const MusicPlayer = ({ audioRef }) => {
   const dispatch = useDispatch();
@@ -95,7 +98,20 @@ const MusicPlayer = ({ audioRef }) => {
     isShuffleOn,
     repeatMode,
   } = useSelector((state) => state.player);
-
+  const {
+    startDownload,
+    updateProgress,
+    setError,
+    completeDownload,
+    cancelDownload,
+    getDownloadState,
+    completePlaylistDownload,
+    startPlaylistDownload,
+    cancelPlaylistDownload,
+    updatePlaylistProgress,
+    playlistDownload,
+    clearDownloadState,
+  } = useDownloadProgress();
   // Time formatting
   const formatTime = useCallback((seconds) => {
     if (isNaN(seconds) || seconds < 0) return "0:00";
@@ -273,7 +289,65 @@ const MusicPlayer = ({ audioRef }) => {
       document.removeEventListener("touchend", handleTouchEnd);
     };
   }, [isTouching, handleTopProgressTouchMove, handleTopProgressTouchEnd]);
+  function getFileExtension(url) {
+    if (!url || typeof url !== "string") return "mp4";
 
+    // Remove query params and hash fragments
+    const cleanUrl = url.split(/[?#]/)[0];
+
+    // Get the last path segment (filename)
+    const filename = cleanUrl.split("/").pop();
+
+    // Extract extension
+    if (!filename || !filename.includes(".")) return "mp4";
+
+    return filename.split(".").pop() || "mp4";
+  }
+
+  const resolveSongDownload = (song: Song) => {
+    // adapt to your API shape: pick the highest quality or first valid URL
+    const url = song.downloadUrl?.[4]?.url || song.url || song.streamUrl;
+    const safeName = `${song.name || "track"} - ${
+      song.artists?.primary?.[0]?.name || "unknown"
+    }`.replace(/[^\w\-\s\.\(\)\[\]]/g, "_");
+    console.log(safeName);
+    const ext = getFileExtension(url);
+    const filename = `${safeName}`;
+
+    return { url, filename };
+  };
+
+  const handleDownloadSong = async (song: Song) => {
+    try {
+      const { url, filename } = resolveSongDownload(song);
+      if (!url) throw new Error("Download URL not available");
+
+      // Start the download progress tracking
+      startDownload(song.id);
+
+      await downloadMP4WithMetadata(
+        url,
+        filename,
+        {
+          title: song.name || "Unknown Title",
+          artist: song.artists?.primary?.[0]?.name || "Unknown Artist",
+          album: song?.album?.name,
+          year: song?.year,
+          coverUrl: song.image?.[1]?.url || "/placeholder-album.jpg",
+        },
+        // Add progress callback
+        (progress, status) => {
+          updateProgress(song.id, progress, status);
+        }
+      );
+
+      // Mark as complete
+      completeDownload(song.id);
+    } catch (e) {
+      console.error(e);
+      setError(song.id, e.message || "Failed to download track");
+    }
+  };
   if (!currentSong) return null;
 
   return (
@@ -373,17 +447,13 @@ const MusicPlayer = ({ audioRef }) => {
                     />
                   </div>
                   <div className="min-w-0">
-               
                     <h4 className="font-medium text-gray-900 dark:text-white truncate">
-                   
                       <Link
                         href={`/song/${currentSong.name}/${currentSong.id}/false/0`}
                         className="hover:underline"
                       >
-                      {currentSong.name}
-                     
+                        {currentSong.name}
                       </Link>
-                  
                     </h4>
                     <p className="text-sm text-gray-500 dark:text-gray-400 truncate">
                       {currentSong.artists?.primary
@@ -485,13 +555,28 @@ const MusicPlayer = ({ audioRef }) => {
                     <Share2 className="w-4 h-4" />
                   </button>
 
-                  <button className="p-2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors">
-                    <Download className="w-4 h-4" />
-                  </button>
-
-                  <button className="p-2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors">
-                    <MoreHorizontal className="w-4 h-4" />
-                  </button>
+            
+                    <div className="min-w-[100px] flex justify-center">
+                      {getDownloadState(currentSong.id) ? (
+                        <DownloadProgress
+                          progress={getDownloadState(currentSong.id).progress}
+                          status={getDownloadState(currentSong.id).status}
+                          error={getDownloadState(currentSong.id).error}
+                          onCancel={() => cancelDownload(currentSong.id)}
+                          onComplete={() => clearDownloadState(currentSong.id)} // Add this
+                          isMobile={false}
+                        />
+                      ) : (
+                        <button
+                          onClick={() => handleDownloadSong(currentSong)}
+                          className="w-9 h-9 rounded-full bg-white/10 hover:bg-white/20 hover:scale-105 active:scale-95 transition-all duration-200 flex items-center justify-center text-gray-300 hover:text-white"
+                          title="Download"
+                        >
+                          <Download className="w-4 h-4" />
+                        </button>
+                      )}
+                    </div>
+               
 
                   {/* Simple Volume Control */}
                   <div className="flex items-center gap-2">
