@@ -10,8 +10,12 @@ export default function AuthPage() {
   const router = useRouter();
   const { theme } = useTheme();
   const [user, setUser] = useState(null);
+  const [isClient, setIsClient] = useState(false);
 
   useEffect(() => {
+    // Mark as client-side only after component mounts
+    setIsClient(true);
+
     const getUser = async () => {
       const { data: { user } } = await supabase.auth.getUser();
       if (user) {
@@ -32,6 +36,26 @@ export default function AuthPage() {
     return () => subscription.unsubscribe();
   }, [router]);
 
+  // Don't render the Auth component until we're on the client
+  if (!isClient) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-gray-50 via-white to-gray-100 dark:from-gray-900 dark:via-gray-800 dark:to-black flex items-center justify-center p-4">
+        <div className="w-full max-w-md">
+          <div className="bg-white/90 dark:bg-gray-900/90 backdrop-blur-xl rounded-3xl border border-gray-200/50 dark:border-gray-700/50 p-8 shadow-2xl">
+            <div className="text-center">
+              <div className="mx-auto w-16 h-16 bg-gradient-to-r from-purple-600 to-pink-600 rounded-2xl flex items-center justify-center mb-4 shadow-lg shadow-purple-500/25">
+                <div className="w-8 h-8 bg-white rounded-lg flex items-center justify-center">
+                  <div className="w-4 h-4 bg-gradient-to-r from-purple-600 to-pink-600 rounded animate-pulse"></div>
+                </div>
+              </div>
+              <p className="text-gray-600 dark:text-gray-400">Loading...</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 via-white to-gray-100 dark:from-gray-900 dark:via-gray-800 dark:to-black flex items-center justify-center p-4">
       <div className="w-full max-w-md">
@@ -51,7 +75,7 @@ export default function AuthPage() {
             </p>
           </div>
 
-          {/* Auth UI */}
+          {/* Auth UI - Only render on client */}
           <Auth
             supabaseClient={supabase}
             appearance={{
@@ -115,7 +139,7 @@ export default function AuthPage() {
               },
             }}
             providers={['google', 'github']}
-            redirectTo={`${window.location.origin}/auth/callback`}
+            redirectTo={`${typeof window !== 'undefined' ? window.location.origin : ''}/auth/callback`}
             theme={theme === 'dark' ? 'dark' : 'default'}
           />
         </div>
