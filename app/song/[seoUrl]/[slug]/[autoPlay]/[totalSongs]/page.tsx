@@ -26,6 +26,7 @@ import Link from "next/link";
 import { RootState } from "@/redux/store";
 import {
   deductUserCredits,
+  fetchUserLikes,
   getUserSubscription,
   toggleSongLike,
 } from "@/lib/supabasefunctions";
@@ -34,31 +35,28 @@ import { downloadMP4WithMetadata } from "@/utils/download";
 import { useDownloadProgress } from "@/hooks/useDownloadProgress";
 import DownloadProgress from "@/components/DownloadProgress";
 import LikedSongs from "@/components/likedSongs";
+import PlaylistModal from "@/components/PlaylistModal";
 
 const SongDetailPage = () => {
   const { slug, autoPlay } = useParams();
   const router = useRouter();
 
   const [scrolled, setScrolled] = useState(false);
-  const [isLiked, setIsLiked] = useState(false);
   const [isInPlaylist, setIsInPlaylist] = useState(false);
+  const [playlistModalOpen, setPlaylistModalOpen] = useState(false);
+  const [selectedSong, setSelectedSong] = useState(null);
   const [user, setUser] = useState(null);
   const [currentSubscription, setCurrentSubscription] = useState(null);
+  const [likedSongs, setLikedSongs] = useState(new Set());
   const headerRef = useRef(null);
   const dispatch = useDispatch();
   const params = useParams();
   const {
     startDownload,
     updateProgress,
-    setError,
     completeDownload,
     cancelDownload,
     getDownloadState,
-    completePlaylistDownload,
-    startPlaylistDownload,
-    cancelPlaylistDownload,
-    updatePlaylistProgress,
-    playlistDownload,
     clearDownloadState,
   } = useDownloadProgress();
   // Get song data using RTK Query
@@ -153,24 +151,32 @@ const SongDetailPage = () => {
       handlePlaySong(true);
     }
   };
+  useEffect(() => {
+    const loadLikedSongs = async () => {
+      const liked = await fetchUserLikes();
+      setLikedSongs(new Set(liked));
+    };
 
-  const handleLike = () => {
-       const isCurrentlyLiked = LikedSongs.has(songId);
-       const newLikeStatus = await toggleSongLike(songId, isCurrentlyLiked);
-   
-       setIsLiked((prev) => {
-         const newSet = new Set(prev);
-         if (newLikeStatus) {
-           newSet.add(songId);
-         } else {
-           newSet.delete(songId);
-         }
-         return newSet;
-       });
+    loadLikedSongs();
+  }, []);
+  const handleLike = async () => {
+    const isCurrentlyLiked = likedSongs.has(songId);
+    const newLikeStatus = await toggleSongLike(songId, isCurrentlyLiked);
+
+    setLikedSongs((prev) => {
+      const newSet = new Set(prev);
+      if (newLikeStatus) {
+        newSet.add(songId);
+      } else {
+        newSet.delete(songId);
+      }
+      return newSet;
+    });
   };
 
-  const handleAddToPlaylist = () => {
-    setIsInPlaylist(!isInPlaylist);
+  const handleAddToPlaylist = (song) => {
+    setSelectedSong(song);
+    setPlaylistModalOpen(true);
   };
 
   const handleShare = () => {
@@ -570,7 +576,7 @@ const SongDetailPage = () => {
                   </button>
 
                   <button
-                    onClick={handleAddToPlaylist}
+                    onClick={() => handleAddToPlaylist(song)}
                     className={`px-6 py-3 rounded-full font-semibold text-base transition-all duration-300 border ${
                       isInPlaylist
                         ? "bg-purple-600 border-purple-600 text-white shadow-lg shadow-purple-500/25"
@@ -594,14 +600,16 @@ const SongDetailPage = () => {
                     <button
                       onClick={handleLike}
                       className={`p-3 rounded-full transition-all duration-300 group ${
-                        isLiked
+                        likedSongs.has(songId)
                           ? "bg-red-500 text-white shadow-lg shadow-red-500/25"
                           : "bg-gray-100 dark:bg-white/10 hover:bg-red-50 dark:hover:bg-red-900/20"
                       }`}
                     >
                       <Heart
                         className={`w-5 h-5 ${
-                          isLiked ? "fill-current" : "group-hover:text-red-500"
+                          likedSongs
+                            ? "fill-current"
+                            : "group-hover:text-red-500"
                         }`}
                       />
                     </button>
@@ -753,6 +761,15 @@ const SongDetailPage = () => {
           </div>
 
           {/* Additional sections can be added here */}
+                <PlaylistModal
+                  isOpen={playlistModalOpen}
+                  onClose={() => {
+                    setPlaylistModalOpen(false);
+                    setSelectedSong(null);
+                  }}
+                  songId={selectedSong?.id}
+                  songName={selectedSong?.name}
+                />
         </div>
       </div>
     </>
