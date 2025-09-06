@@ -323,6 +323,34 @@ export const musicApi = createApi({
     getPlaylistById: builder.query({
       query: ({ id }) => `/playlists?id=${id}`,
     }),
+    getSongsByIds: builder.query({
+      queryFn: async (songIds, _queryApi, _extraOptions, fetchWithBQ) => {
+        if (!songIds || songIds.length === 0) {
+          return { data: [] };
+        }
+
+        try {
+          const promises = songIds.map((id) => fetchWithBQ(`/songs/${id}`));
+
+          const results = await Promise.all(promises);
+          const songs = results
+            .filter((result) => !result.error && result.data?.success)
+            .map((result) => result.data.data[0])
+            .filter(Boolean);
+
+          return { data: songs };
+        } catch (error) {
+          return { error: { status: "FETCH_ERROR", error: error.message } };
+        }
+      },
+      providesTags: (result, error, songIds) =>
+        result
+          ? [
+              { type: "Song", id: "LIST" },
+              ...songIds.map((id) => ({ type: "Song", id })),
+            ]
+          : [{ type: "Song", id: "LIST" }],
+    }),
   }),
 });
 
@@ -337,4 +365,5 @@ export const {
   useGetArtistSongsByIdQuery,
   useGetArtistAlbumsByIdQuery,
   useGetSearchResultQuery,
+  useGetSongsByIdsQuery
 } = musicApi;

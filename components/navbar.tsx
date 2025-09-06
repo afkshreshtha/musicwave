@@ -1,11 +1,13 @@
 "use client";
 import { ModeToggle } from "@/components/mode-toogle";
 import Link from "next/link";
-import { Heart, User, Waves, LogOut, Settings, Shield } from "lucide-react";
+import { Heart, User, Waves, LogOut, Settings, Shield, CreditCard } from "lucide-react";
 import SearchBar from "./search-br";
 import { useState, useEffect, useRef } from "react";
 import { supabase } from "@/lib/supabase";
 import { useRouter } from "next/navigation";
+import CreditsDisplay from "./creaditDisplay";
+import Image from "next/image";
 
 export default function Navbar() {
   const [isVisible, setIsVisible] = useState(true);
@@ -156,10 +158,12 @@ export default function Navbar() {
                 >
                   <div className="absolute inset-0 bg-gradient-to-r from-blue-500/20 to-cyan-500/20 rounded-lg xs:rounded-xl sm:rounded-2xl opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
                   
-                  {user.user_metadata?.avatar_url ? (
-                    <img
-                      src={user.user_metadata.avatar_url}
+                  {user?.user_metadata?.avatar_url ? (
+                    <Image
+                      src={`${user?.user_metadata?.avatar_url}`}
                       alt="Profile"
+                      width={50}
+                      height={50}
                       className="relative w-4 h-4 xs:w-5 xs:h-5 sm:w-6 sm:h-6 rounded-full object-cover"
                     />
                   ) : (
@@ -176,9 +180,9 @@ export default function Navbar() {
                     {/* User Info */}
                     <div className="px-4 py-3 border-b border-gray-200/50 dark:border-gray-700/50">
                       <div className="flex items-center gap-3">
-                        {user.user_metadata?.avatar_url ? (
+                        {user?.user_metadata?.avatar_url ? (
                           <img
-                            src={user.user_metadata.avatar_url}
+                            src={user?.user_metadata.avatar_url}
                             alt="Profile"
                             className="w-10 h-10 rounded-full object-cover"
                           />
@@ -226,6 +230,14 @@ export default function Navbar() {
                         <Shield className="w-4 h-4" />
                         Upgrade Premium
                       </Link>
+                      <Link
+                        href="/manage-subscription"
+                        className="flex items-center gap-3 px-4 py-2.5 text-sm text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-800/50 transition-colors duration-200"
+                        onClick={() => setShowUserMenu(false)}
+                      >
+                        <CreditCard className="w-4 h-4" />
+                        Manage Subscription
+                      </Link>
                     </div>
 
                     {/* Logout */}
@@ -253,6 +265,7 @@ export default function Navbar() {
               </button>
             )}
           </div>
+          <CreditsDisplay/>
 
           {/* Mode Toggle */}
           <div className="relative scale-75 xs:scale-90 sm:scale-100 origin-center">

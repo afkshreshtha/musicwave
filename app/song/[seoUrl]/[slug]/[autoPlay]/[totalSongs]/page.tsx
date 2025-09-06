@@ -24,19 +24,43 @@ import { useGetSongByIdQuery } from "@/redux/features/api/musicApi";
 import Image from "next/image";
 import Link from "next/link";
 import { RootState } from "@/redux/store";
+import {
+  deductUserCredits,
+  getUserSubscription,
+  toggleSongLike,
+} from "@/lib/supabasefunctions";
+import { supabase } from "@/lib/supabase";
+import { downloadMP4WithMetadata } from "@/utils/download";
+import { useDownloadProgress } from "@/hooks/useDownloadProgress";
+import DownloadProgress from "@/components/DownloadProgress";
+import LikedSongs from "@/components/likedSongs";
 
 const SongDetailPage = () => {
   const { slug, autoPlay } = useParams();
   const router = useRouter();
-  
+
   const [scrolled, setScrolled] = useState(false);
   const [isLiked, setIsLiked] = useState(false);
   const [isInPlaylist, setIsInPlaylist] = useState(false);
-
+  const [user, setUser] = useState(null);
+  const [currentSubscription, setCurrentSubscription] = useState(null);
   const headerRef = useRef(null);
   const dispatch = useDispatch();
   const params = useParams();
-
+  const {
+    startDownload,
+    updateProgress,
+    setError,
+    completeDownload,
+    cancelDownload,
+    getDownloadState,
+    completePlaylistDownload,
+    startPlaylistDownload,
+    cancelPlaylistDownload,
+    updatePlaylistProgress,
+    playlistDownload,
+    clearDownloadState,
+  } = useDownloadProgress();
   // Get song data using RTK Query
   const {
     data: songData,
@@ -46,7 +70,9 @@ const SongDetailPage = () => {
 
   const song = songData?.data || {};
 
-  const { isPlaying, currentSong } = useSelector((state: RootState) => state.player);
+  const { isPlaying, currentSong } = useSelector(
+    (state: RootState) => state.player
+  );
   const songName = params.seoUrl;
   const songId = params.slug;
 
@@ -76,7 +102,20 @@ const SongDetailPage = () => {
     if (num >= 1000) return `${(num / 1000).toFixed(1)}K`;
     return num.toString();
   };
+  useEffect(() => {
+    const fetchUserData = async () => {
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+      if (user) {
+        setUser(user);
+        const subscription = await getUserSubscription();
+        setCurrentSubscription(subscription);
+      }
+    };
 
+    fetchUserData();
+  }, []);
   useEffect(() => {
     const handleScroll = () => {
       if (headerRef.current) {
@@ -116,7 +155,18 @@ const SongDetailPage = () => {
   };
 
   const handleLike = () => {
-    setIsLiked(!isLiked);
+       const isCurrentlyLiked = LikedSongs.has(songId);
+       const newLikeStatus = await toggleSongLike(songId, isCurrentlyLiked);
+   
+       setIsLiked((prev) => {
+         const newSet = new Set(prev);
+         if (newLikeStatus) {
+           newSet.add(songId);
+         } else {
+           newSet.delete(songId);
+         }
+         return newSet;
+       });
   };
 
   const handleAddToPlaylist = () => {
@@ -134,6 +184,79 @@ const SongDetailPage = () => {
       });
     } else {
       navigator.clipboard.writeText(window.location.href);
+    }
+  };
+  const handleDownloadSong = async () => {
+    if (!user) {
+      alert("Please login to download songs.");
+      return;
+    }
+
+    if (!song.id) {
+      alert("Song data not available.");
+      return;
+    }
+
+    try {
+      console.log("🔍 Checking credits for song download...");
+
+      // Check and deduct 1 credit for song download
+      const result = await deductUserCredits(user.id, 1, "song");
+
+      console.log("✅ Credit deducted:", result);
+
+      // Update local subscription state
+      if (result.remainingCredits !== "unlimited") {
+        setCurrentSubscription((prev) => ({
+          ...prev,
+          credits_remaining: result.remainingCredits,
+        }));
+      }
+
+      // Get download URL from song data
+      const downloadUrl =
+        song.downloadUrl?.[4]?.url || song.streamUrl || song.url;
+      if (!downloadUrl) {
+        throw new Error("Download URL not available");
+      }
+
+      const safeName = `${song.name || song.title || "track"} - ${
+        song.artists?.primary?.[0]?.name || "unknown"
+      }`.replace(/[^\w\-\s\.\(\)\[\]]/g, "_");
+
+      // Start the download progress tracking
+      startDownload(song.id);
+
+      await downloadMP4WithMetadata(
+        downloadUrl,
+        safeName,
+        {
+          title: song.name || song.title || "Unknown Title",
+          artist: song.artists?.primary?.[0]?.name || "Unknown Artist",
+          album: song.album?.name || "Unknown Album",
+          year: song.year,
+          coverUrl: song.image?.[2]?.url || "/placeholder-album.jpg",
+        },
+        // Progress callback
+        (progress, status) => {
+          updateProgress(song.id, progress, status);
+        }
+      );
+
+      // Mark as complete
+      completeDownload(song.id);
+
+      // Show success message with remaining credits
+      if (result.remainingCredits === "unlimited") {
+        console.log("✅ Song downloaded (Unlimited plan)");
+      } else {
+        console.log(
+          `✅ Song downloaded! ${result.remainingCredits} credits remaining`
+        );
+      }
+    } catch (error) {
+      console.error("❌ Download failed:", error);
+      alert(error.message || "Failed to download song");
     }
   };
 
@@ -169,7 +292,6 @@ const SongDetailPage = () => {
   if (songLoading) {
     return (
       <>
-    
         <LoadingSkeleton />
       </>
     );
@@ -179,7 +301,6 @@ const SongDetailPage = () => {
   if (!song.id) {
     return (
       <>
-   
         <div className="min-h-screen bg-gradient-to-br from-gray-50 via-white to-gray-100 dark:from-gray-900 dark:via-gray-800 dark:to-black text-gray-900 dark:text-white flex items-center justify-center px-4">
           <div className="text-center bg-white/90 dark:bg-gray-900/90 backdrop-blur-xl rounded-3xl border border-gray-200/60 dark:border-gray-700/60 p-8 shadow-2xl max-w-md mx-auto">
             <div className="w-16 h-16 bg-red-100 dark:bg-red-900/30 rounded-full flex items-center justify-center mx-auto mb-4">
@@ -189,7 +310,8 @@ const SongDetailPage = () => {
               Song not found
             </p>
             <p className="text-gray-600 dark:text-gray-400 mb-6">
-              The song you&apos;re looking for doesn&apos;t exist or has been removed.
+              The song you&apos;re looking for doesn&apos;t exist or has been
+              removed.
             </p>
             <button
               onClick={() => router.back()}
@@ -205,7 +327,6 @@ const SongDetailPage = () => {
 
   return (
     <>
-    
       <div className="min-h-screen bg-gradient-to-br from-gray-50 via-white to-gray-100 dark:from-gray-900 dark:via-gray-800 dark:to-black text-gray-900 dark:text-white relative overflow-hidden">
         {/* Enhanced Background Effects */}
         <div className="fixed inset-0 bg-gradient-to-br from-purple-500/5 via-pink-500/3 to-blue-500/5 dark:from-purple-900/20 dark:via-pink-900/10 dark:to-blue-900/20 pointer-events-none"></div>
@@ -387,7 +508,10 @@ const SongDetailPage = () => {
                           {artist.image && (
                             <div className="w-7 h-7 rounded-full overflow-hidden ring-2 ring-purple-500/30 group-hover:ring-purple-500/60 transition-all duration-200 shadow-md">
                               <Image
-                                src={artist.image[0]?.url || "/placeholder-artist.jpg"}
+                                src={
+                                  artist.image[0]?.url ||
+                                  "/placeholder-artist.jpg"
+                                }
                                 alt={artist.name}
                                 width={28}
                                 height={28}
@@ -400,7 +524,9 @@ const SongDetailPage = () => {
                           </span>
                         </Link>
                         {index < song.artists.primary.length - 1 && (
-                          <span className="text-gray-400 dark:text-gray-500 mx-1">,</span>
+                          <span className="text-gray-400 dark:text-gray-500 mx-1">
+                            ,
+                          </span>
                         )}
                       </React.Fragment>
                     ))}
@@ -487,9 +613,38 @@ const SongDetailPage = () => {
                       <Share2 className="w-5 h-5" />
                     </button>
 
-                    <button className="p-3 rounded-full bg-gray-100 dark:bg-white/10 hover:bg-gray-200 dark:hover:bg-white/20 transition-colors duration-300">
-                      <Download className="w-5 h-5" />
-                    </button>
+                    {getDownloadState(song.id) ? (
+                      <DownloadProgress
+                        progress={getDownloadState(song.id).progress}
+                        status={getDownloadState(song.id).status}
+                        error={getDownloadState(song.id).error}
+                        onCancel={() => cancelDownload(song.id)}
+                        onComplete={() => clearDownloadState(song.id)}
+                        isMobile={false}
+                      />
+                    ) : (
+                      <button
+                        onClick={handleDownloadSong}
+                        disabled={
+                          !currentSubscription?.is_unlimited &&
+                          currentSubscription?.credits_remaining < 1
+                        }
+                        className={`p-3 rounded-full transition-all duration-300 ${
+                          !currentSubscription?.is_unlimited &&
+                          currentSubscription?.credits_remaining < 1
+                            ? "bg-gray-300 dark:bg-gray-600 cursor-not-allowed opacity-50"
+                            : "bg-gray-100 dark:bg-white/10 hover:bg-gray-200 dark:hover:bg-white/20"
+                        }`}
+                        title={
+                          !currentSubscription?.is_unlimited &&
+                          currentSubscription?.credits_remaining < 1
+                            ? "Need 1 credit to download song"
+                            : "Download song (1 credit)"
+                        }
+                      >
+                        <Download className="w-5 h-5" />
+                      </button>
+                    )}
 
                     <button className="p-3 rounded-full bg-gray-100 dark:bg-white/10 hover:bg-gray-200 dark:hover:bg-white/20 transition-colors duration-300">
                       <MoreHorizontal className="w-5 h-5" />
@@ -515,9 +670,11 @@ const SongDetailPage = () => {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               {song.album && (
                 <div className="flex items-center gap-4 p-4 rounded-xl bg-gray-50 dark:bg-white/5 hover:bg-gray-100 dark:hover:bg-white/10 transition-colors duration-200">
-                  <span className="text-gray-500 dark:text-gray-400 w-20 font-medium">Album:</span>
+                  <span className="text-gray-500 dark:text-gray-400 w-20 font-medium">
+                    Album:
+                  </span>
                   <span className="text-gray-900 dark:text-white font-semibold">
-                    <Link 
+                    <Link
                       href={`/album/${song.album.name}/${song.album.id}/false/0`}
                       className="hover:text-purple-600 dark:hover:text-purple-400 transition-colors"
                     >
@@ -529,7 +686,9 @@ const SongDetailPage = () => {
 
               {song.language && (
                 <div className="flex items-center gap-4 p-4 rounded-xl bg-gray-50 dark:bg-white/5">
-                  <span className="text-gray-500 dark:text-gray-400 w-20 font-medium">Language:</span>
+                  <span className="text-gray-500 dark:text-gray-400 w-20 font-medium">
+                    Language:
+                  </span>
                   <span className="text-gray-900 dark:text-white font-semibold capitalize">
                     {song.language}
                   </span>
@@ -538,7 +697,9 @@ const SongDetailPage = () => {
 
               {song.playCount && (
                 <div className="flex items-center gap-4 p-4 rounded-xl bg-gray-50 dark:bg-white/5">
-                  <span className="text-gray-500 dark:text-gray-400 w-20 font-medium">Plays:</span>
+                  <span className="text-gray-500 dark:text-gray-400 w-20 font-medium">
+                    Plays:
+                  </span>
                   <span className="text-gray-900 dark:text-white font-semibold">
                     {formatNumber(song.playCount)}
                   </span>
@@ -547,14 +708,20 @@ const SongDetailPage = () => {
 
               {song.year && (
                 <div className="flex items-center gap-4 p-4 rounded-xl bg-gray-50 dark:bg-white/5">
-                  <span className="text-gray-500 dark:text-gray-400 w-20 font-medium">Year:</span>
-                  <span className="text-gray-900 dark:text-white font-semibold">{song.year}</span>
+                  <span className="text-gray-500 dark:text-gray-400 w-20 font-medium">
+                    Year:
+                  </span>
+                  <span className="text-gray-900 dark:text-white font-semibold">
+                    {song.year}
+                  </span>
                 </div>
               )}
 
               {song.duration && (
                 <div className="flex items-center gap-4 p-4 rounded-xl bg-gray-50 dark:bg-white/5">
-                  <span className="text-gray-500 dark:text-gray-400 w-20 font-medium">Duration:</span>
+                  <span className="text-gray-500 dark:text-gray-400 w-20 font-medium">
+                    Duration:
+                  </span>
                   <span className="text-gray-900 dark:text-white font-semibold">
                     {formatDuration(song.duration)}
                   </span>
@@ -563,7 +730,9 @@ const SongDetailPage = () => {
 
               {song.bitrate && (
                 <div className="flex items-center gap-4 p-4 rounded-xl bg-gray-50 dark:bg-white/5">
-                  <span className="text-gray-500 dark:text-gray-400 w-20 font-medium">Quality:</span>
+                  <span className="text-gray-500 dark:text-gray-400 w-20 font-medium">
+                    Quality:
+                  </span>
                   <span className="text-gray-900 dark:text-white font-semibold">
                     {song.bitrate} kbps
                   </span>
@@ -572,8 +741,12 @@ const SongDetailPage = () => {
 
               {song.label && (
                 <div className="flex items-center gap-4 p-4 rounded-xl bg-gray-50 dark:bg-white/5">
-                  <span className="text-gray-500 dark:text-gray-400 w-20 font-medium">Label:</span>
-                  <span className="text-gray-900 dark:text-white font-semibold">{song.label}</span>
+                  <span className="text-gray-500 dark:text-gray-400 w-20 font-medium">
+                    Label:
+                  </span>
+                  <span className="text-gray-900 dark:text-white font-semibold">
+                    {song.label}
+                  </span>
                 </div>
               )}
             </div>

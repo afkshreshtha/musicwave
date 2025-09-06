@@ -23,6 +23,7 @@ import {
   Loader,
   ArrowLeft,
   X,
+  Plus,
 } from "lucide-react";
 import { useParams, useRouter } from "next/navigation";
 import { useGetTracksByIdQuery } from "@/redux/features/api/musicApi";
@@ -44,9 +45,21 @@ import { RootState } from "@/redux/store";
 import { downloadMP4WithMetadata } from "@/utils/download";
 import { useDownloadProgress } from "@/hooks/useDownloadProgress";
 import DownloadProgress from "@/components/DownloadProgress";
-import SongActionsMenu from "@/components/SongActionsMenu";
 import { downloadPlaylistAsZip } from "@/utils/playlistDownload";
 import PlaylistDownloadProgress from "@/components/playlistDownloadProgress";
+import {
+  deductUserCredits,
+  getUserSubscription,
+} from "@/lib/supabasefunctions";
+import {
+  fetchUserLikes,
+  saveToListeningHistory,
+  toggleSongLike,
+  trackSongPlay,
+} from "@/lib/supabasefunctions";
+import PlaylistModal from "@/components/PlaylistModal";
+import { handleLikePlaylist } from "@/lib/supabasefunctions";
+import { supabase } from "@/lib/supabase";
 interface Song {
   id: string;
   name: string;
@@ -121,8 +134,17 @@ const PlaylistDetailsPage = () => {
   const params = useParams();
   const router = useRouter();
   const [scrolled, setScrolled] = useState(false);
+  const [likedSongs, setLikedSongs] = useState(new Set());
+  const [playlistModalOpen, setPlaylistModalOpen] = useState(false);
+  const [selectedSong, setSelectedSong] = useState(null);
   const [currentPage, setCurrentPage] = useState(1);
   const [showProgressDialog, setShowProgressDialog] = useState(false);
+  const [isPlaylistLiked, setIsPlaylistLiked] = useState(false);
+  const [playedSongsInSession, setPlayedSongsInSession] = useState(new Set());
+  const [currentSubscription, setCurrentSubscription] = useState(null);
+  const [user, setUser] = useState(null);
+  const [subscription, setSubscription] = useState(null);
+  const [loading, setLoading] = useState(true);
   const [hasMore, setHasMore] = useState(true);
   const headerRef = useRef(null);
   const observerRef = useRef(null);
@@ -130,7 +152,6 @@ const PlaylistDetailsPage = () => {
   const {
     startDownload,
     updateProgress,
-    setError,
     completeDownload,
     cancelDownload,
     getDownloadState,
@@ -141,7 +162,7 @@ const PlaylistDetailsPage = () => {
     playlistDownload,
     clearDownloadState,
   } = useDownloadProgress();
-  
+
   useEffect(() => {
     if (playlistDownload.isDownloading && !showProgressDialog) {
       setShowProgressDialog(true);
@@ -160,7 +181,16 @@ const PlaylistDetailsPage = () => {
       skip: !params.slug,
     }
   );
+  useEffect(() => {
+    const fetchUserSubscription = async () => {
+      if (user) {
+        const subscription = await getUserSubscription();
+        setCurrentSubscription(subscription);
+      }
+    };
 
+    fetchUserSubscription();
+  }, [user]);
   const { isPlaying, currentSong, queue, showQueue, isShuffleOn, repeatMode } =
     useSelector((state: RootState) => state.player);
 
@@ -174,7 +204,14 @@ const PlaylistDetailsPage = () => {
     setCurrentPage(1);
     setHasMore(true);
   }, [params.slug]);
+  useEffect(() => {
+    const loadLikedSongs = async () => {
+      const liked = await fetchUserLikes();
+      setLikedSongs(new Set(liked));
+    };
 
+    loadLikedSongs();
+  }, []);
   // Check if we have more pages to load
   useEffect(() => {
     if (playlist) {
@@ -212,7 +249,27 @@ const PlaylistDetailsPage = () => {
   };
 
   const handleDownloadSong = async (song: Song) => {
+    if (!user) {
+      alert("Please login to download songs.");
+      return;
+    }
+
     try {
+      console.log("🔍 Checking credits for song download...");
+
+      // Check and deduct 1 credit for song download
+      const result = await deductUserCredits(user.id, 1, "song");
+
+      console.log("✅ Credit deducted:", result);
+
+      // Update local subscription state
+      if (result.remainingCredits !== "unlimited") {
+        setCurrentSubscription((prev) => ({
+          ...prev,
+          credits_remaining: result.remainingCredits,
+        }));
+      }
+
       const { url, filename } = resolveSongDownload(song);
       if (!url) throw new Error("Download URL not available");
 
@@ -237,29 +294,56 @@ const PlaylistDetailsPage = () => {
 
       // Mark as complete
       completeDownload(song.id);
-    } catch (e) {
-      console.error(e);
-      setError(song.id, e.message || "Failed to download track");
+
+      // Show success message with remaining credits
+      if (result.remainingCredits === "unlimited") {
+        console.log("✅ Song downloaded (Unlimited plan)");
+      } else {
+        console.log(
+          `✅ Song downloaded! ${result.remainingCredits} credits remaining`
+        );
+      }
+    } catch (error) {
+      console.error("❌ Download failed:", error);
+      alert(error.message || "Failed to download song");
     }
   };
 
   const handleDownloadPlaylist = async () => {
-    console.log("🎯 handleDownloadPlaylist called");
-    console.log("🎵 allSongs.length:", allSongs.length);
+    if (!user) {
+      alert("Please login to download playlists.");
+      return;
+    }
 
-    if (!allSongs.length) return;
+    if (!allSongs.length) {
+      alert("No songs available to download.");
+      return;
+    }
 
     try {
-      console.log("🚀 About to call startPlaylistDownload");
+      console.log("🔍 Checking credits for playlist download...");
+
+      // Check and deduct 2 credits for playlist download
+      const result = await deductUserCredits(user.id, 2, "playlist");
+
+      console.log("✅ Credits deducted:", result);
+
+      // Update local subscription state
+      if (result.remainingCredits !== "unlimited") {
+        setCurrentSubscription((prev) => ({
+          ...prev,
+          credits_remaining: result.remainingCredits,
+        }));
+      }
+
+      console.log("🚀 Starting playlist download...");
       startPlaylistDownload();
-      setShowProgressDialog(true); // Show dialog when starting
-      console.log("✅ startPlaylistDownload called");
+      setShowProgressDialog(true);
 
       const { errors } = await downloadPlaylistAsZip(
         allSongs,
         playlist?.name || "Playlist",
         (progress) => {
-          console.log("📊 Progress callback received:", progress);
           updatePlaylistProgress({
             ...progress,
             isDownloading: true,
@@ -268,14 +352,29 @@ const PlaylistDetailsPage = () => {
       );
 
       completePlaylistDownload(errors);
-      // Don't auto-close dialog, let user close it
+
+      // Show success message with remaining credits
+      if (result.remainingCredits === "unlimited") {
+        console.log("✅ Playlist downloaded (Unlimited plan)");
+      } else {
+        console.log(
+          `✅ Playlist downloaded! ${result.remainingCredits} credits remaining`
+        );
+      }
     } catch (error) {
-      console.error("Playlist download failed:", error);
+      console.error("❌ Playlist download failed:", error);
+      alert(error.message || "Failed to download playlist");
       cancelPlaylistDownload();
       setShowProgressDialog(false);
     }
   };
-
+  const handleLikeCurrentPlaylist = async () => {
+    const success = await handleLikePlaylist(playlist, allSongs);
+    if (success) {
+      setIsPlaylistLiked(true);
+      // Optional: Add visual feedback or refresh user playlists
+    }
+  };
   // Intersection Observer for infinite scroll
   const lastElementRef = useCallback(
     (node) => {
@@ -319,7 +418,27 @@ const PlaylistDetailsPage = () => {
       }
     }
   }, [allSongs, dispatch]);
+  useEffect(() => {
+    const checkIfPlaylistLiked = async () => {
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+      if (!user || !playlist) return;
 
+      const { data } = await supabase
+        .from("user_playlists")
+        .select("id")
+        .eq("user_id", user.id)
+        .eq("name", playlist.name)
+        .single();
+
+      setIsPlaylistLiked(!!data);
+    };
+
+    if (playlist) {
+      checkIfPlaylistLiked();
+    }
+  }, [playlist]);
   // Check for auto-play on mount
 
   useEffect(() => {
@@ -335,6 +454,28 @@ const PlaylistDetailsPage = () => {
     }
   }, [allSongs.length, autoPlay, playlistName, playlistId, totalSongs]);
 
+  const fetchData = async () => {
+    try {
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+      // if (!user) {
+      //   router.push("/auth");
+      //   return;
+      // }
+
+      setUser(user);
+      const userSubscription = await getUserSubscription();
+      setSubscription(userSubscription);
+    } catch (error) {
+      console.error("Error fetching data:", error);
+    } finally {
+      setLoading(false);
+    }
+  };
+  useEffect(() => {
+    fetchData();
+  }, []);
   useEffect(() => {
     const handleScroll = () => {
       if (headerRef.current) {
@@ -368,6 +509,18 @@ const PlaylistDetailsPage = () => {
         } else {
           dispatch(setQueue(allSongs));
           dispatch(playSong(songToPlay));
+
+          // 🔒 Only track play count if song hasn't been played in this session
+          if (!playedSongsInSession.has(songId)) {
+            console.log("Tracking play for first time:", songToPlay.name);
+            trackSongPlay(songToPlay?.duration);
+            saveToListeningHistory(songToPlay);
+            setPlayedSongsInSession((prev) => new Set(prev).add(songId));
+          } else {
+            console.log(
+              "Song already played in this session, not tracking again"
+            );
+          }
         }
       }
     } else {
@@ -379,16 +532,26 @@ const PlaylistDetailsPage = () => {
     }
   };
 
-  const handleLike = (songId) => {
-    // Implement like functionality
-  };
+  const handleToggleLike = async (songId) => {
+    const isCurrentlyLiked = likedSongs.has(songId);
+    const newLikeStatus = await toggleSongLike(songId, isCurrentlyLiked);
 
+    setLikedSongs((prev) => {
+      const newSet = new Set(prev);
+      if (newLikeStatus) {
+        newSet.add(songId);
+      } else {
+        newSet.delete(songId);
+      }
+      return newSet;
+    });
+  };
+  const handleAddToPlaylist = (song) => {
+    setSelectedSong(song);
+    setPlaylistModalOpen(true);
+  };
   const handleFollow = () => {
     // Implement follow functionality
-  };
-
-  const handleRemoveFromQueue = (songId) => {
-    dispatch(removeFromQueue(songId));
   };
 
   const handleShuffleToggle = () => {
@@ -497,7 +660,7 @@ const PlaylistDetailsPage = () => {
       </div>
     );
   }
-  console.log(playlistDownload);
+
   return (
     <div className="min-h-screen bg-gradient-to-b from-gray-900 via-gray-800 to-black text-white relative overflow-hidden">
       {/* Background Effects */}
@@ -704,8 +867,27 @@ const PlaylistDetailsPage = () => {
                 </button>
 
                 <div className="flex items-center gap-2">
-                  <button className="p-2 md:p-3 rounded-full bg-white/10 hover:bg-white/20 transition-colors duration-300 group">
-                    <Heart className="w-4 h-4 md:w-5 md:h-5 group-hover:text-purple-400" />
+                  <button
+                    onClick={handleLikeCurrentPlaylist}
+                    disabled={isPlaylistLiked}
+                    className={`p-2 md:p-3 rounded-full transition-colors duration-300 group ${
+                      isPlaylistLiked
+                        ? "bg-red-600/20 text-red-500"
+                        : "bg-white/10 hover:bg-white/20"
+                    }`}
+                    title={
+                      isPlaylistLiked
+                        ? "Already in your library"
+                        : "Save to your library"
+                    }
+                  >
+                    <Heart
+                      className={`w-4 h-4 md:w-5 md:h-5 ${
+                        isPlaylistLiked
+                          ? "fill-current text-red-500"
+                          : "group-hover:text-red-400"
+                      }`}
+                    />
                   </button>
 
                   <button className="p-2 md:p-3 rounded-full bg-white/10 hover:bg-white/20 transition-colors duration-300">
@@ -715,39 +897,50 @@ const PlaylistDetailsPage = () => {
                   <button
                     onClick={handleDownloadPlaylist}
                     disabled={
-                      playlistDownload.isDownloading || allSongs.length === 0
+                      playlistDownload.isDownloading ||
+                      allSongs.length === 0 ||
+                      (!currentSubscription?.is_unlimited &&
+                        currentSubscription?.credits_remaining < 2)
                     }
                     className={`
-    relative flex items-center justify-center gap-2 md:gap-3 
-    px-4 md:px-6 py-3 md:py-3.5 
-    rounded-full font-semibold text-sm md:text-base 
-    transition-all duration-300 
-    min-w-[140px] md:min-w-[160px]
-    ${
-      playlistDownload.isDownloading
-        ? "bg-gradient-to-r from-blue-600 to-cyan-600 cursor-not-allowed"
-        : "bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-500 hover:to-emerald-500 hover:scale-105"
-    }
-    ${allSongs.length === 0 ? "opacity-50 cursor-not-allowed" : ""}
-    shadow-lg shadow-green-500/25
-    active:scale-95 md:active:scale-105
-    touch-manipulation
-  `}
+          relative flex items-center justify-center gap-2 md:gap-3 
+          px-4 md:px-6 py-3 md:py-3.5 
+          rounded-full font-semibold text-sm md:text-base 
+          transition-all duration-300 
+          min-w-[140px] md:min-w-[160px]
+          ${
+            playlistDownload.isDownloading
+              ? "bg-gradient-to-r from-blue-600 to-cyan-600 cursor-not-allowed"
+              : !currentSubscription?.is_unlimited &&
+                currentSubscription?.credits_remaining < 2
+              ? "bg-gray-600 cursor-not-allowed opacity-50"
+              : "bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-500 hover:to-emerald-500 hover:scale-105"
+          }
+          shadow-lg shadow-green-500/25
+          active:scale-95 md:active:scale-105
+          touch-manipulation
+        `}
+                    title={
+                      !currentSubscription?.is_unlimited &&
+                      currentSubscription?.credits_remaining < 2
+                        ? "Need 2 credits to download playlist"
+                        : "Download entire playlist"
+                    }
                   >
                     {playlistDownload.isDownloading ? (
                       <>
                         <div className="w-4 h-4 md:w-5 md:h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                        <span className="font-medium">
-                          {playlistDownload.currentSong &&
-                          playlistDownload.totalSongs
-                            ? `Downloading...`
-                            : "Downloading..."}
-                        </span>
+                        <span className="font-medium">Downloading...</span>
                       </>
                     ) : (
                       <>
                         <Download className="w-4 h-4 md:w-5 md:h-5" />
                         <span>Download All</span>
+                        {!currentSubscription?.is_unlimited && (
+                          <span className="text-xs opacity-75 bg-black/30 px-2 py-1 rounded">
+                            2 credits
+                          </span>
+                        )}
                         {allSongs.length > 0 && (
                           <span className="text-xs opacity-75">
                             ({allSongs.length})
@@ -756,6 +949,7 @@ const PlaylistDetailsPage = () => {
                       </>
                     )}
                   </button>
+
                   <PlaylistDownloadProgress
                     isVisible={
                       showProgressDialog && playlistDownload.isDownloading
@@ -932,10 +1126,10 @@ const PlaylistDetailsPage = () => {
                     </p>
                   </div>
 
-                  {/* Actions - Always Visible on Mobile */}
+                  {/* Mobile Layout - Update the download section */}
                   <div className="flex items-center gap-1">
                     {/* Duration */}
-                    <span className="text-xs text-gray-400 mr-1">
+                    <span className="text-xs text-gray-400 mr-2">
                       {song.duration
                         ? Math.floor(song.duration / 60) +
                           ":" +
@@ -943,8 +1137,35 @@ const PlaylistDetailsPage = () => {
                         : "--:--"}
                     </span>
 
-                    {/* Download Button - Always Visible */}
-                    {/* Mobile Layout - Update the download section */}
+                    {/* Heart Button */}
+                    <button
+                      onClick={() => handleToggleLike(song.id)}
+                      className={`p-2 rounded-full transition-colors ${
+                        likedSongs.has(song.id)
+                          ? "text-red-500 hover:text-red-400"
+                          : "text-gray-400 hover:text-red-400"
+                      }`}
+                      title={
+                        likedSongs.has(song.id) ? "Unlike song" : "Like song"
+                      }
+                    >
+                      <Heart
+                        className={`w-4 h-4 ${
+                          likedSongs.has(song.id) ? "fill-current" : ""
+                        }`}
+                      />
+                    </button>
+
+                    {/* Add to Playlist Button */}
+                    <button
+                      onClick={() => handleAddToPlaylist(song)}
+                      className="p-2 rounded-full text-gray-400 hover:text-purple-400 transition-colors"
+                      title="Add to playlist"
+                    >
+                      <Plus className="w-4 h-4" />
+                    </button>
+
+                    {/* Download Button */}
                     <div className="min-w-[90px] flex justify-end">
                       {getDownloadState(song.id) ? (
                         <DownloadProgress
@@ -952,7 +1173,7 @@ const PlaylistDetailsPage = () => {
                           status={getDownloadState(song.id).status}
                           error={getDownloadState(song.id).error}
                           onCancel={() => cancelDownload(song.id)}
-                          onComplete={() => clearDownloadState(song.id)} // Add this
+                          onComplete={() => clearDownloadState(song.id)}
                           isMobile={true}
                         />
                       ) : (
@@ -1056,23 +1277,66 @@ const PlaylistDetailsPage = () => {
                   </div>
 
                   <div className="col-span-1 flex justify-center">
-                    <div className="min-w-[100px] flex justify-center">
+                    <div className="flex items-center gap-2">
+                      {/* Heart Button */}
+                      <button
+                        onClick={() => handleToggleLike(song.id)}
+                        className={`p-2 rounded-full transition-colors ${
+                          likedSongs.has(song.id)
+                            ? "text-red-500 hover:text-red-400"
+                            : "text-gray-400 hover:text-red-400"
+                        }`}
+                        title={
+                          likedSongs.has(song.id) ? "Unlike song" : "Like song"
+                        }
+                      >
+                        <Heart
+                          className={`w-4 h-4 ${
+                            likedSongs.has(song.id) ? "fill-current" : ""
+                          }`}
+                        />
+                      </button>
+
+                      {/* Add to Playlist Button */}
+                      <button
+                        onClick={() => handleAddToPlaylist(song)}
+                        className="p-2 rounded-full text-gray-400 hover:text-purple-400 transition-colors"
+                        title="Add to playlist"
+                      >
+                        <Plus className="w-4 h-4" />
+                      </button>
+
+                      {/* Download Button */}
                       {getDownloadState(song.id) ? (
                         <DownloadProgress
                           progress={getDownloadState(song.id).progress}
                           status={getDownloadState(song.id).status}
                           error={getDownloadState(song.id).error}
                           onCancel={() => cancelDownload(song.id)}
-                          onComplete={() => clearDownloadState(song.id)} // Add this
+                          onComplete={() => clearDownloadState(song.id)}
                           isMobile={false}
                         />
                       ) : (
                         <button
                           onClick={() => handleDownloadSong(song)}
-                          className="w-9 h-9 rounded-full bg-white/10 hover:bg-white/20 hover:scale-105 active:scale-95 transition-all duration-200 flex items-center justify-center text-gray-300 hover:text-white"
-                          title="Download"
+                          disabled={
+                            !currentSubscription?.is_unlimited &&
+                            currentSubscription?.credits_remaining < 1
+                          }
+                          className={`w-8 h-8 rounded-full transition-all duration-200 flex items-center justify-center ${
+                            !currentSubscription?.is_unlimited &&
+                            currentSubscription?.credits_remaining < 1
+                              ? "bg-gray-600 cursor-not-allowed opacity-50 text-gray-400"
+                              : "bg-white/10 hover:bg-white/20 active:bg-white/30 text-gray-300 hover:text-white"
+                          }`}
+                          title={
+                            !currentSubscription?.is_unlimited &&
+                            currentSubscription?.credits_remaining < 1
+                              ? "Need 1 credit to download song"
+                              : "Download song (1 credit)"
+                          }
                         >
-                          <Download className="w-4 h-4" />
+                          <Download className="w-3.5 h-3.5" />
                         </button>
                       )}
                     </div>
@@ -1104,6 +1368,15 @@ const PlaylistDetailsPage = () => {
         showNowPlaying={true}
         allowPlayFromQueue={true}
         allowRemoveFromQueue={true}
+      />
+      <PlaylistModal
+        isOpen={playlistModalOpen}
+        onClose={() => {
+          setPlaylistModalOpen(false);
+          setSelectedSong(null);
+        }}
+        songId={selectedSong?.id}
+        songName={selectedSong?.name}
       />
     </div>
   );

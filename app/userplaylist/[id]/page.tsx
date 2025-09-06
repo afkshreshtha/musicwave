@@ -23,9 +23,14 @@ import {
   Trash2,
   Loader,
   ArrowLeft,
+  Music,
 } from "lucide-react";
 import { useParams, useRouter } from "next/navigation";
-import { useGetPlaylistByIdQuery } from "@/redux/features/api/musicApi";
+import {
+  useGetPlaylistByIdQuery,
+  useGetSongByIdQuery,
+  useGetSongsByIdsQuery,
+} from "@/redux/features/api/musicApi";
 import { useDispatch, useSelector } from "react-redux";
 import {
   playPause,
@@ -49,7 +54,7 @@ import { downloadPlaylistAsZip } from "@/utils/playlistDownload";
 import { downloadMP4WithMetadata } from "@/utils/download";
 import PlaylistDownloadProgress from "@/components/playlistDownloadProgress";
 import DownloadProgress from "@/components/DownloadProgress";
-import { trackSongPlay } from "@/lib/supabasefunctions";
+import { fetchPlaylistSongsById, trackSongPlay } from "@/lib/supabasefunctions";
 const MinimizedProgressIndicator = ({ playlistDownload, onExpand }) => {
   if (!playlistDownload.isDownloading) return null;
 
@@ -108,10 +113,13 @@ const MinimizedProgressIndicator = ({ playlistDownload, onExpand }) => {
 };
 const SongDetails = () => {
   const { slug, songcount, autoPlay } = useParams();
+  const params = useParams();
   const router = useRouter();
   const [scrolled, setScrolled] = useState(false);
   const [page, setPage] = useState(1);
   const [showProgressDialog, setShowProgressDialog] = useState(false);
+  const [playlistData, setPlaylistData] = useState([]);
+  const [userPlaylists, setUserPlaylists] = useState([]);
   const {
     startDownload,
     updateProgress,
@@ -131,17 +139,20 @@ const SongDetails = () => {
   const id = slug;
 
   // Fixed: Added proper query structure and error handling
-  const { songs, hasMore, loading, error } = usePlaylist(id, page);
-
+  //   const { songs, hasMore, loading, error } = usePlaylist(id, page);
+  const songIds = playlistData.map((item) => item.song_id);
+  const [playlistInfo, setPlaylistInfo] = useState(null);
   // Get playlist data using RTK Query
   const {
-    data: playlistData,
-    isLoading: playlistLoading,
-    error: playlistError,
-  } = useGetPlaylistByIdQuery({ id });
+    data: s = [],
+    error: songsError,
+    isLoading: songsLoading,
+  } = useGetSongsByIdsQuery(songIds, {
+    skip: songIds.length === 0,
+  });
 
   // Extract playlist info from the data
-  const playlist = playlistData?.data || {};
+  const playlist = s?.data || {};
 
   const {
     isPlaying,
@@ -157,23 +168,22 @@ const SongDetails = () => {
     const decodedString = str?.replace(/&quot;/g, '"');
     return decodedString;
   };
+  useEffect(() => {
+    const fetchPlaylistData = async () => {
+      if (!params.id) return;
+
+      const data = await fetchPlaylistSongsById(params.id);
+
+      if (data.length > 0) {
+        setPlaylistData(data);
+        setPlaylistInfo(data[0].user_playlists);
+      }
+    };
+
+    fetchPlaylistData();
+  }, [params.id]);
   const { showQueue, toggleQueueVisibility } = useQueue();
   // Fixed: Renamed lastBookElementRef to lastElementRef for consistency
-  const observer = useRef();
-  const lastElementRef = useCallback(
-    (node) => {
-      if (loading) return;
-
-      if (observer.current) observer.current.disconnect();
-      observer.current = new IntersectionObserver((entries) => {
-        if (entries[0].isIntersecting && hasMore) {
-          setPage((prevPage) => prevPage + 1);
-        }
-      });
-      if (node) observer.current.observe(node);
-    },
-    [loading, hasMore]
-  );
 
   function getFileExtension(url) {
     if (!url || typeof url !== "string") return "mp4";
@@ -269,8 +279,8 @@ const SongDetails = () => {
 
   // Memoize all songs for better performance
   const allSongs = useMemo(() => {
-    return songs || [];
-  }, [songs]);
+    return s || [];
+  }, [s]);
 
   // Decode playlist name
   const playlistName = useMemo(() => {
@@ -322,7 +332,6 @@ const SongDetails = () => {
           autoPlay,
         })
       );
-
     }
   };
 
@@ -336,10 +345,10 @@ const SongDetails = () => {
           dispatch(setQueue(allSongs));
           dispatch(playSong(songToPlay));
         }
-        console.log(songToPlay)
+        console.log(songToPlay);
       }
-      console.log(songToPlay)
-      trackSongPlay(songToPlay?.duration)
+      console.log(songToPlay);
+      trackSongPlay(songToPlay?.duration);
     } else {
       if (!currentSong && allSongs.length > 0) {
         handlePlayPlaylist(true);
@@ -405,71 +414,8 @@ const SongDetails = () => {
     );
   };
 
-  // Show initial loading for first page
-  if ((loading && page === 1) || playlistLoading) {
-    return (
-      <>
-       
-        <div className="min-h-screen bg-gradient-to-br from-purple-50 to-pink-50 dark:from-gray-900 dark:to-gray-800 text-white relative overflow-hidden">
-          <div className="fixed inset-0 bg-gradient-to-br from-purple-900/20 via-pink-900/10 to-blue-900/20 pointer-events-none"></div>
-
-          {/* Mobile Loading Header */}
-          <div className="flex items-center gap-4 p-4 md:hidden">
-            <div className="w-6 h-6 bg-gray-600 rounded animate-pulse"></div>
-            <div className="h-6 bg-gray-600 rounded w-32 animate-pulse"></div>
-          </div>
-
-          <div className="relative pt-4 md:pt-20 pb-8">
-            <div className="max-w-7xl mx-auto px-4 md:px-6">
-              <div className="flex flex-col items-center md:flex-row md:items-start lg:items-end gap-6 md:gap-8">
-                <div className="w-64 h-64 md:w-80 md:h-80 bg-gray-700 rounded-3xl animate-pulse"></div>
-                <div className="flex-1 space-y-4 md:space-y-6 text-center md:text-left">
-                  <div className="space-y-3 md:space-y-4">
-                    <div className="h-3 md:h-4 bg-gray-600 rounded w-16 md:w-20 mx-auto md:mx-0"></div>
-                    <div className="h-8 md:h-16 bg-gray-600 rounded w-full md:w-3/4 mx-auto md:mx-0"></div>
-                    <div className="h-4 md:h-6 bg-gray-700 rounded w-full mx-auto md:mx-0"></div>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <div className="max-w-7xl mx-auto px-4 md:px-6 pb-32">
-            <div className="mb-6 md:mb-8">
-              <div className="h-6 md:h-8 bg-gray-600 rounded w-32 md:w-48 mb-4"></div>
-            </div>
-            <SongLoadingSkeleton count={20} />
-          </div>
-        </div>
-      </>
-    );
-  }
-
-  // Fixed: Changed Error to error (lowercase)
-  if (error || playlistError) {
-    return (
-      <>
-       
-        <div className="min-h-screen bg-gradient-to-br from-purple-50 to-pink-50 dark:from-gray-900 dark:to-gray-800 text-white flex items-center justify-center px-4">
-          <div className="text-center">
-            <p className="text-lg md:text-xl text-red-400 mb-4">
-              Error loading playlist
-            </p>
-            <button
-              onClick={() => window.location.reload()}
-              className="px-6 py-3 bg-purple-600 rounded-lg hover:bg-purple-700 transition-colors"
-            >
-              Try Again
-            </button>
-          </div>
-        </div>
-      </>
-    );
-  }
-
   return (
     <>
-   
       <div className="min-h-screen bg-gradient-to-br from-purple-50 to-pink-50 dark:from-gray-900 dark:to-gray-800 text-white relative overflow-hidden">
         {/* Background Effects */}
         <div className="fixed inset-0 bg-gradient-to-br from-purple-900/20 via-pink-900/10 to-blue-900/20 pointer-events-none"></div>
@@ -485,21 +431,34 @@ const SongDetails = () => {
             </button>
             {scrolled && (
               <>
-                <div className="w-8 h-8 rounded overflow-hidden">
-                  <Image
-                    src={
-                      playlist?.image?.[2]?.url || "/placeholder-playlist.jpg"
-                    }
-                    alt={playlistName}
-                    width={32}
-                    height={32}
-                    className="w-full h-full object-cover"
-                  />
+                <div className="w-8 h-8 sm:w-10 sm:h-10 rounded overflow-hidden flex-shrink-0">
+                  {playlistInfo?.image_url ? (
+                    <Image
+                      src={playlistInfo.image_url}
+                      alt={playlistInfo.name}
+                      width={40}
+                      height={40}
+                      className="w-full h-full object-cover"
+                    />
+                  ) : (
+                    <div className="w-full h-full bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center">
+                      <Music className="w-4 h-4 sm:w-5 sm:h-5 text-white" />
+                    </div>
+                  )}
                 </div>
+
                 <div className="flex-1 min-w-0">
-                  <h1 className="font-semibold truncate">{playlistName}</h1>
-                  <p className="text-xs text-gray-400">
-                    {songcount || allSongs.length} songs
+                  <h1 className="font-semibold truncate text-sm sm:text-base">
+                    {playlistInfo?.name || "My Playlist"}
+                  </h1>
+                  <p className="text-xs text-gray-400 truncate">
+                    {allSongs.length} songs
+                    {playlistInfo?.created_at && (
+                      <span>
+                        {" "}
+                        • {new Date(playlistInfo.created_at).getFullYear()}
+                      </span>
+                    )}
                   </p>
                 </div>
               </>
@@ -542,23 +501,31 @@ const SongDetails = () => {
             {scrolled && (
               <>
                 <div className="w-12 h-12 rounded-lg overflow-hidden ring-2 ring-purple-500/30">
-                  <Image
-                    src={
-                      playlist?.image?.[2]?.url || "/placeholder-playlist.jpg"
-                    }
-                    alt={playlistName}
-                    width={48}
-                    height={48}
-                    className="w-full h-full object-cover"
-                  />
+                  {playlistInfo?.image_url ? (
+                    <Image
+                      src={playlistInfo.image_url}
+                      alt={playlistInfo.name}
+                      width={48}
+                      height={48}
+                      className="w-full h-full object-cover"
+                    />
+                  ) : (
+                    <div className="w-full h-full bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center">
+                      <Music className="w-6 h-6 text-white" />
+                    </div>
+                  )}
                 </div>
                 <div>
-                  <h1 className="text-xl font-bold">{playlistName}</h1>
-                  <p className="text-sm text-gray-400">
-                    {songcount || allSongs.length} songs
-                    {loading && page > 1 && (
-                      <span className="ml-1 text-purple-400">
-                        • Loading more...
+                  <h1 className="text-lg xl:text-xl font-bold">
+                    {playlistInfo?.name || "My Playlist"}
+                  </h1>
+                  <p className="text-xs xl:text-sm text-gray-400">
+                    {allSongs.length} songs
+                    {playlistInfo?.created_at && (
+                      <span>
+                        {" "}
+                        • Created{" "}
+                        {new Date(playlistInfo.created_at).getFullYear()}
                       </span>
                     )}
                   </p>
@@ -597,30 +564,36 @@ const SongDetails = () => {
           <div className="max-w-7xl mx-auto px-4 md:px-6">
             <div className="flex flex-col items-center md:flex-row md:items-start lg:items-end gap-6 md:gap-8">
               {/* Cover Art */}
-              <div className="relative group">
-                <div className="relative w-64 h-64 md:w-80 md:h-80 rounded-3xl overflow-hidden shadow-2xl shadow-black/50">
-                  <div className="absolute -inset-4 bg-gradient-to-r from-purple-500/30 via-pink-500/30 to-blue-500/30 rounded-3xl blur-xl opacity-75 group-hover:opacity-100 transition-opacity duration-500"></div>
+              {/* Cover Art - UPDATED */}
+              <div className="relative group mx-auto md:mx-0">
+                <div className="relative w-48 h-48 sm:w-56 sm:h-56 md:w-64 md:h-64 lg:w-80 lg:h-80 rounded-2xl sm:rounded-3xl overflow-hidden shadow-2xl shadow-black/50">
+                  <div className="absolute -inset-2 sm:-inset-4 bg-gradient-to-r from-purple-500/30 via-pink-500/30 to-blue-500/30 rounded-2xl sm:rounded-3xl blur-xl opacity-75 group-hover:opacity-100 transition-opacity duration-500"></div>
 
                   <div className="relative w-full h-full">
-                    <Image
-                      src={
-                        playlist?.image?.[2]?.url || "/placeholder-playlist.jpg"
-                      }
-                      alt={playlistName}
-                      width={320}
-                      height={320}
-                      className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
-                    />
+                    {/* Use playlist image if available, otherwise show default */}
+                    {playlistInfo?.image_url ? (
+                      <Image
+                        src={playlistInfo.image_url}
+                        alt={playlistInfo.name}
+                        fill
+                        className="object-cover transition-transform duration-700 group-hover:scale-105"
+                        sizes="(max-width: 640px) 192px, (max-width: 768px) 224px, (max-width: 1024px) 256px, 320px"
+                      />
+                    ) : (
+                      <div className="w-full h-full bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center">
+                        <Music className="w-16 h-16 sm:w-20 sm:h-20 md:w-24 md:h-24 lg:w-32 lg:h-32 text-white" />
+                      </div>
+                    )}
 
                     <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-all duration-300 flex items-center justify-center">
                       <button
                         onClick={() => handlePlayPause()}
-                        className="w-16 h-16 md:w-20 md:h-20 bg-white/20 backdrop-blur-sm rounded-full flex items-center justify-center hover:bg-white/30 transition-colors duration-300"
+                        className="w-12 h-12 sm:w-16 sm:h-16 md:w-20 md:h-20 bg-white/20 backdrop-blur-sm rounded-full flex items-center justify-center hover:bg-white/30 transition-colors duration-300"
                       >
                         {isPlaying && isCurrentPlaylist ? (
-                          <Pause className="w-6 h-6 md:w-8 md:h-8 text-white" />
+                          <Pause className="w-5 h-5 sm:w-6 sm:h-6 md:w-8 md:h-8 text-white" />
                         ) : (
-                          <Play className="w-6 h-6 md:w-8 md:h-8 text-white ml-1" />
+                          <Play className="w-5 h-5 sm:w-6 sm:h-6 md:w-8 md:h-8 text-white ml-1" />
                         )}
                       </button>
                     </div>
@@ -629,150 +602,68 @@ const SongDetails = () => {
               </div>
 
               {/* Playlist Info */}
+              {/* Playlist Info - UPDATED */}
               <div className="flex-1 space-y-4 md:space-y-6 text-center md:text-left">
                 <div>
                   <p className="text-xs md:text-sm font-semibold text-purple-400 uppercase tracking-wider mb-2">
-                    Playlist
+                    My Playlist
                   </p>
-                  <h1 className="text-3xl md:text-4xl lg:text-6xl font-black mb-3 md:mb-4 bg-gradient-to-r from-white via-purple-200 to-pink-200 bg-clip-text text-transparent">
-                    {playlistName}
+
+                  {/* Playlist Name */}
+                  <h1 className="text-2xl sm:text-3xl md:text-4xl lg:text-5xl xl:text-6xl font-black mb-3 md:mb-4 bg-gradient-to-r from-white via-purple-200 to-pink-200 bg-clip-text text-transparent leading-tight">
+                    {playlistInfo?.name || "My Playlist"}
                   </h1>
-                  <p className="text-gray-300 text-sm md:text-lg leading-relaxed max-w-2xl mx-auto md:mx-0">
-                    By{" "}
-                    {playlist?.artists?.length > 0
-                      ? playlist.artists
-                          .slice(0, 3)
-                          .map((artist) => artist.name)
-                          .join(", ")
-                      : "Various Artists"}
+
+                  {/* Description - Only show if available */}
+                  {playlistInfo?.description && (
+                    <p className="text-gray-300 text-sm sm:text-base md:text-lg leading-relaxed max-w-2xl mx-auto md:mx-0 mb-3">
+                      {playlistInfo.description}
+                    </p>
+                  )}
+
+                  {/* Created by info */}
+                  <p className="text-gray-400 text-xs sm:text-sm md:text-base">
+                    Created by you
                   </p>
                 </div>
 
                 {/* Stats */}
-                <div className="flex flex-wrap items-center justify-center md:justify-start gap-4 md:gap-6 text-xs md:text-sm text-gray-400">
-                  <div className="flex items-center gap-2">
-                    <Calendar className="w-4 h-4" />
-                    <span>{playlist?.year || "Unknown Year"}</span>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <Clock className="w-4 h-4" />
-                    <span>
-                      {songcount || allSongs.length} songs
-                      {hasMore && (
-                        <span className="text-purple-400 ml-1">
-                          (More available)
-                        </span>
-                      )}
-                    </span>
-                  </div>
-                  {playlist?.artists?.length > 0 && (
-                    <div className="flex items-center gap-2">
-                      <Users className="w-4 h-4" />
-                      <span>{playlist.artists.length} artists</span>
+                <div className="flex flex-wrap items-center justify-center md:justify-start gap-3 sm:gap-4 md:gap-6 text-xs sm:text-sm md:text-base text-gray-400">
+                  {/* Creation Year - Only show if available */}
+                  {playlistInfo?.created_at && (
+                    <div className="flex items-center gap-1 sm:gap-2">
+                      <Calendar className="w-3 h-3 sm:w-4 sm:h-4" />
+                      <span>
+                        Created{" "}
+                        {new Date(playlistInfo.created_at).getFullYear()}
+                      </span>
                     </div>
                   )}
+
+                  {/* Song Count */}
+                  <div className="flex items-center gap-1 sm:gap-2">
+                    <Clock className="w-3 h-3 sm:w-4 sm:h-4" />
+                    <span>{allSongs.length} songs</span>
+                  </div>
+
+                  {/* Last Updated - Only show if available */}
+                  {playlistInfo?.updated_at &&
+                    playlistInfo.updated_at !== playlistInfo.created_at && (
+                      <div className="flex items-center gap-1 sm:gap-2">
+                        <Users className="w-3 h-3 sm:w-4 sm:h-4" />
+                        <span>
+                          Updated{" "}
+                          {new Date(
+                            playlistInfo.updated_at
+                          ).toLocaleDateString()}
+                        </span>
+                      </div>
+                    )}
                 </div>
 
-                {/* Action Buttons */}
-                <div className="flex flex-wrap items-center justify-center md:justify-start gap-3 md:gap-4 pt-2 md:pt-4">
-                  <button
-                    onClick={() => handlePlayPlaylist(true)}
-                    className="group flex items-center gap-2 md:gap-3 bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-500 hover:to-pink-500 px-6 md:px-8 py-2.5 md:py-3 rounded-full font-semibold text-sm md:text-base transition-all duration-300 hover:scale-105 shadow-lg shadow-purple-500/25"
-                  >
-                    {isPlaying && isCurrentPlaylist ? (
-                      <Pause className="w-4 h-4 md:w-5 md:h-5" />
-                    ) : (
-                      <Play className="w-4 h-4 md:w-5 md:h-5 ml-0.5" />
-                    )}
-                    {isPlaying && isCurrentPlaylist ? "Pause" : "Play Playlist"}
-                  </button>
-
-                  <button className="px-4 md:px-6 py-2.5 md:py-3 rounded-full font-semibold text-sm md:text-base transition-all duration-300 bg-transparent border border-white/20 hover:border-white/40">
-                    Save
-                  </button>
-
-                  <div className="flex items-center gap-2">
-                    <button className="p-2 md:p-3 rounded-full bg-white/10 hover:bg-white/20 transition-colors duration-300 group">
-                      <Heart className="w-4 h-4 md:w-5 md:h-5 group-hover:text-purple-400" />
-                    </button>
-
-                    <button className="p-2 md:p-3 rounded-full bg-white/10 hover:bg-white/20 transition-colors duration-300">
-                      <Share2 className="w-4 h-4 md:w-5 md:h-5" />
-                    </button>
-
-                    <button
-                      onClick={handleDownloadPlaylist}
-                      disabled={
-                        playlistDownload.isDownloading || allSongs.length === 0
-                      }
-                      className={`
-               relative flex items-center justify-center gap-2 md:gap-3 
-               px-4 md:px-6 py-3 md:py-3.5 
-               rounded-full font-semibold text-sm md:text-base 
-               transition-all duration-300 
-               min-w-[140px] md:min-w-[160px]
-               ${
-                 playlistDownload.isDownloading
-                   ? "bg-gradient-to-r from-blue-600 to-cyan-600 cursor-not-allowed"
-                   : "bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-500 hover:to-emerald-500 hover:scale-105"
-               }
-               ${allSongs.length === 0 ? "opacity-50 cursor-not-allowed" : ""}
-               shadow-lg shadow-green-500/25
-               active:scale-95 md:active:scale-105
-               touch-manipulation
-             `}
-                    >
-                      {playlistDownload.isDownloading ? (
-                        <>
-                          <div className="w-4 h-4 md:w-5 md:h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                          <span className="font-medium">
-                            {playlistDownload.currentSong &&
-                            playlistDownload.totalSongs
-                              ? `Downloading...`
-                              : "Downloading..."}
-                          </span>
-                        </>
-                      ) : (
-                        <>
-                          <Download className="w-4 h-4 md:w-5 md:h-5" />
-                          <span>Download All</span>
-                          {allSongs.length > 0 && (
-                            <span className="text-xs opacity-75">
-                              ({allSongs.length})
-                            </span>
-                          )}
-                        </>
-                      )}
-                    </button>
-                    <PlaylistDownloadProgress
-                      isVisible={
-                        showProgressDialog && playlistDownload.isDownloading
-                      }
-                      currentSong={playlistDownload.currentSong || 0}
-                      totalSongs={playlistDownload.totalSongs || 0}
-                      currentSongProgress={
-                        playlistDownload.currentSongProgress || 0
-                      }
-                      currentSongStatus={
-                        playlistDownload.currentSongStatus || ""
-                      }
-                      overallProgress={playlistDownload.overallProgress || 0}
-                      currentSongName={playlistDownload.currentSongName || ""}
-                      errors={playlistDownload.errors || []}
-                      onClose={() => setShowProgressDialog(false)} // Just minimize
-                      onCancel={() => {
-                        cancelPlaylistDownload();
-                        setShowProgressDialog(false);
-                      }} // Actually cancel
-                    />
-                    <MinimizedProgressIndicator
-                      playlistDownload={playlistDownload}
-                      onExpand={() => setShowProgressDialog(true)}
-                    />
-                    <button className="p-2 md:p-3 rounded-full bg-white/10 hover:bg-white/20 transition-colors duration-300">
-                      <MoreHorizontal className="w-4 h-4 md:w-5 md:h-5" />
-                    </button>
-                  </div>
+                {/* Action Buttons - Keep your existing buttons */}
+                <div className="flex flex-wrap items-center justify-center md:justify-start gap-2 sm:gap-3 md:gap-4 pt-2 md:pt-4">
+                  {/* Your existing action buttons go here */}
                 </div>
               </div>
             </div>
@@ -789,8 +680,7 @@ const SongDetails = () => {
           >
             <div className="flex items-center justify-between mb-3 md:mb-4">
               <h2 className="text-xl md:text-2xl font-bold">
-                Songs ({songcount || allSongs.length}
-                {hasMore && <span className="text-purple-400">+</span>})
+                Songs ({songcount || allSongs.length})
               </h2>
               <div className="flex items-center gap-2 md:gap-3">
                 <button
@@ -836,12 +726,9 @@ const SongDetails = () => {
           {/* Songs */}
           <div className="space-y-1 md:space-y-2">
             {allSongs.map((song, index) => {
-              const isLastElement = index === allSongs.length - 1;
-
               return (
                 <div
                   key={`${song.id}-${index}`}
-                  ref={isLastElement ? lastElementRef : null}
                   className={`group rounded-xl transition-all duration-300 ${
                     currentSong?.id === song.id ? "bg-white/10" : ""
                   } hover:bg-white/5`}
@@ -1085,17 +972,7 @@ const SongDetails = () => {
             })}
 
             {/* Show infinite loading indicator */}
-            {loading && page > 1 && hasMore && <InfiniteLoadingIndicator />}
           </div>
-
-          {/* No more results */}
-          {!hasMore && allSongs.length > 0 && (
-            <div className="text-center py-8 md:py-12">
-              <div className="text-gray-400 text-sm md:text-base">
-                🎵 You&apos;ve reached the end of the playlist!
-              </div>
-            </div>
-          )}
         </div>
 
         {/* Queue Overlay (Mobile & Desktop) */}

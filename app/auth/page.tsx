@@ -138,7 +138,7 @@ export default function AuthPage() {
                 },
               },
             }}
-            providers={['google', 'github']}
+            providers={['google','']}
             redirectTo={`${typeof window !== 'undefined' ? window.location.origin : ''}/auth/callback`}
             theme={theme === 'dark' ? 'dark' : 'default'}
           />
