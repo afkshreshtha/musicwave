@@ -125,7 +125,7 @@ export default function ManageSubscription() {
           <AlertTriangle className="w-16 h-16 text-yellow-500 mx-auto mb-4" />
           <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-4">No Active Subscription</h2>
           <p className="text-gray-600 dark:text-gray-400 mb-6">
-            You don't have any active subscription to manage.
+            You don&apos;t have any active subscription to manage.
           </p>
           <button
             onClick={() => router.push('/premium')}
