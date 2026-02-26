@@ -1,16 +1,18 @@
 "use client";
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { supabase } from "@/lib/supabase";
+import { createClient } from "@/lib/supabase";
 import { Auth } from "@supabase/auth-ui-react";
 import { ThemeSupa } from "@supabase/auth-ui-shared";
 import { useTheme } from "next-themes";
 
 export default function AuthPage() {
+
   const router = useRouter();
   const { theme } = useTheme();
   const [user, setUser] = useState(null);
   const [isClient, setIsClient] = useState(false);
+  const supabase = createClient();
 
   useEffect(() => {
     // Mark as client-side only after component mounts

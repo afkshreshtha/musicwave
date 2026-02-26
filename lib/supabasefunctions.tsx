@@ -1,7 +1,8 @@
-import { supabase } from "./supabase";
+import { createClient } from "./supabase";
 
 // Initialize user stats (run once when user signs up)
 export const initializeUserStats = async () => {
+  const supabase = createClient();
   const { data: { user } } = await supabase.auth.getUser();
   
   if (!user) {

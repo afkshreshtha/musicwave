@@ -1,7 +1,7 @@
 "use client";
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { supabase } from '@/lib/supabase';
+import { createClient } from '@/lib/supabase';
 import { getUserSubscription } from '@/lib/supabasefunctions';
 import { Coins, Crown, Plus } from 'lucide-react';
 
@@ -11,6 +11,7 @@ export default function CreditsDisplay({ className = '' }) {
   const [isUnlimited, setIsUnlimited] = useState(false);
   const [loading, setLoading] = useState(true);
   const [user, setUser] = useState(null);
+  const supabase = createClient();
 
   useEffect(() => {
     fetchUserAndCredits();

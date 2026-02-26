@@ -4,7 +4,7 @@ import Link from "next/link";
 import { Heart, User, Waves, LogOut, Settings, Shield, CreditCard } from "lucide-react";
 import SearchBar from "./search-br";
 import { useState, useEffect, useRef } from "react";
-import { supabase } from "@/lib/supabase";
+import { createClient } from "@/lib/supabase";
 import { useRouter } from "next/navigation";
 import CreditsDisplay from "./creaditDisplay";
 import Image from "next/image";
@@ -19,6 +19,7 @@ export default function Navbar() {
   const ticking = useRef(false);
   const menuRef = useRef(null);
   const router = useRouter();
+  const supabase = createClient();
 
   // Scroll handling logic (same as before)
   useEffect(() => {
