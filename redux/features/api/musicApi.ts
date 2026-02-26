@@ -4,7 +4,7 @@ import { createApi, fetchBaseQuery } from "@reduxjs/toolkit/query/react";
 export const musicApi = createApi({
   reducerPath: "musicApi",
   baseQuery: fetchBaseQuery({
-    baseUrl: "https://music-api-nine-nu.vercel.app/api",
+    baseUrl: "https://musicwave-api.vercel.app/api",
   }),
   endpoints: (builder) => ({
     getTracksByGenre: builder.query({
@@ -351,6 +351,47 @@ export const musicApi = createApi({
             ]
           : [{ type: "Song", id: "LIST" }],
     }),
+
+  getLyrics: builder.query({
+  queryFn: async ({ artist, song, timestamps = false }) => {
+    if (!artist || !song) {
+      return { error: { status: "FETCH_ERROR", error: "Artist and song are required" } };
+    }
+
+    try {
+      const params = new URLSearchParams({
+        artist,
+        song,
+        timestamps: String(timestamps),
+      });
+
+      const response = await fetch(
+        `https://difficult-nickie-shreshtha-4064af88.koyeb.app/lyrics/?${params.toString()}`
+      );
+
+      if (!response.ok) {
+        return { error: { status: response.status, error: "Failed to fetch lyrics" } };
+      }
+
+      const data = await response.json();
+
+      if (data?.status !== "success") {
+        return { error: { status: "FETCH_ERROR", error: "Lyrics not found" } };
+      }
+
+      return { data: data.data };
+    } catch (error) {
+      return { error: { status: "FETCH_ERROR", error: error.message } };
+    }
+  },
+  providesTags: (result, error, { artist, song }) =>
+    result
+      ? [
+          { type: "Lyrics", id: "LIST" },
+          { type: "Lyrics", id: `${artist}-${song}` },
+        ]
+      : [{ type: "Lyrics", id: "LIST" }],
+}),
   }),
 });
 
@@ -365,5 +406,6 @@ export const {
   useGetArtistSongsByIdQuery,
   useGetArtistAlbumsByIdQuery,
   useGetSearchResultQuery,
-  useGetSongsByIdsQuery
+  useGetSongsByIdsQuery,
+  useGetLyricsQuery,
 } = musicApi;

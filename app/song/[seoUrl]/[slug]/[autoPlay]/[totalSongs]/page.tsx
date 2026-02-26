@@ -36,6 +36,7 @@ import { useDownloadProgress } from "@/hooks/useDownloadProgress";
 import DownloadProgress from "@/components/DownloadProgress";
 import LikedSongs from "@/components/likedSongs";
 import PlaylistModal from "@/components/PlaylistModal";
+import SongLyrics from "@/components/SongsLyrics"; // 👈 NEW
 
 const SongDetailPage = () => {
   const { slug, autoPlay } = useParams();
@@ -59,7 +60,7 @@ const SongDetailPage = () => {
     getDownloadState,
     clearDownloadState,
   } = useDownloadProgress();
-  // Get song data using RTK Query
+
   const {
     data: songData,
     isLoading: songLoading,
@@ -74,7 +75,6 @@ const SongDetailPage = () => {
   const songName = params.seoUrl;
   const songId = params.slug;
 
-  // Utility function to decode HTML strings
   const decodeHTMLString = (str) => {
     return (
       str
@@ -85,7 +85,6 @@ const SongDetailPage = () => {
     );
   };
 
-  // Format duration
   const formatDuration = (seconds) => {
     if (!seconds) return "--:--";
     const mins = Math.floor(seconds / 60);
@@ -93,13 +92,13 @@ const SongDetailPage = () => {
     return `${mins}:${secs.toString().padStart(2, "0")}`;
   };
 
-  // Format number (for play counts, etc.)
   const formatNumber = (num) => {
     if (!num) return "0";
     if (num >= 1000000) return `${(num / 1000000).toFixed(1)}M`;
     if (num >= 1000) return `${(num / 1000).toFixed(1)}K`;
     return num.toString();
   };
+
   useEffect(() => {
     const fetchUserData = async () => {
       const {
@@ -111,22 +110,19 @@ const SongDetailPage = () => {
         setCurrentSubscription(subscription);
       }
     };
-
     fetchUserData();
   }, []);
+
   useEffect(() => {
     const handleScroll = () => {
       if (headerRef.current) {
-        const scrollTop = window.scrollY;
-        setScrolled(scrollTop > 300);
+        setScrolled(window.scrollY > 300);
       }
     };
-
     window.addEventListener("scroll", handleScroll);
     return () => window.removeEventListener("scroll", handleScroll);
   }, []);
 
-  // Check for auto-play on mount
   useEffect(() => {
     const shouldAutoPlay = autoPlay === "true";
     if (shouldAutoPlay && song.id) {
@@ -151,18 +147,18 @@ const SongDetailPage = () => {
       handlePlaySong(true);
     }
   };
+
   useEffect(() => {
     const loadLikedSongs = async () => {
       const liked = await fetchUserLikes();
       setLikedSongs(new Set(liked));
     };
-
     loadLikedSongs();
   }, []);
+
   const handleLike = async () => {
     const isCurrentlyLiked = likedSongs.has(songId);
     const newLikeStatus = await toggleSongLike(songId, isCurrentlyLiked);
-
     setLikedSongs((prev) => {
       const newSet = new Set(prev);
       if (newLikeStatus) {
@@ -192,47 +188,33 @@ const SongDetailPage = () => {
       navigator.clipboard.writeText(window.location.href);
     }
   };
+
   const handleDownloadSong = async () => {
     if (!user) {
       alert("Please login to download songs.");
       return;
     }
-
     if (!song.id) {
       alert("Song data not available.");
       return;
     }
-
     try {
-      console.log("🔍 Checking credits for song download...");
-
-      // Check and deduct 1 credit for song download
       const result = await deductUserCredits(user.id, 1, "song");
-
-      console.log("✅ Credit deducted:", result);
-
-      // Update local subscription state
       if (result.remainingCredits !== "unlimited") {
         setCurrentSubscription((prev) => ({
           ...prev,
           credits_remaining: result.remainingCredits,
         }));
       }
-
-      // Get download URL from song data
       const downloadUrl =
         song.downloadUrl?.[4]?.url || song.streamUrl || song.url;
-      if (!downloadUrl) {
-        throw new Error("Download URL not available");
-      }
+      if (!downloadUrl) throw new Error("Download URL not available");
 
       const safeName = `${song.name || song.title || "track"} - ${
         song.artists?.primary?.[0]?.name || "unknown"
       }`.replace(/[^\w\-\s\.\(\)\[\]]/g, "_");
 
-      // Start the download progress tracking
       startDownload(song.id);
-
       await downloadMP4WithMetadata(
         downloadUrl,
         safeName,
@@ -243,23 +225,11 @@ const SongDetailPage = () => {
           year: song.year,
           coverUrl: song.image?.[2]?.url || "/placeholder-album.jpg",
         },
-        // Progress callback
         (progress, status) => {
           updateProgress(song.id, progress, status);
         }
       );
-
-      // Mark as complete
       completeDownload(song.id);
-
-      // Show success message with remaining credits
-      if (result.remainingCredits === "unlimited") {
-        console.log("✅ Song downloaded (Unlimited plan)");
-      } else {
-        console.log(
-          `✅ Song downloaded! ${result.remainingCredits} credits remaining`
-        );
-      }
     } catch (error) {
       console.error("❌ Download failed:", error);
       alert(error.message || "Failed to download song");
@@ -268,76 +238,64 @@ const SongDetailPage = () => {
 
   const isCurrentSong = currentSong?.id === song.id;
 
-  // Enhanced Loading Component with Dark/Light Mode
-  const LoadingSkeleton = () => {
-    return (
-      <div className="min-h-screen bg-gradient-to-br from-gray-50 via-white to-gray-100 dark:from-gray-900 dark:via-gray-800 dark:to-black text-gray-900 dark:text-white relative overflow-hidden">
-        <div className="fixed inset-0 bg-gradient-to-br from-purple-500/5 via-pink-500/3 to-blue-500/5 dark:from-purple-900/20 dark:via-pink-900/10 dark:to-blue-900/20 pointer-events-none"></div>
+  // ── Primary artist name for lyrics (first primary artist) ──────────────
+  const primaryArtistName =
+    song.artists?.primary?.[0]?.name || "";
 
-        <div className="relative pt-16 md:pt-20 pb-8">
-          <div className="max-w-7xl mx-auto px-4 md:px-6">
-            <div className="flex flex-col items-center gap-8">
-              <div className="w-80 h-80 md:w-96 md:h-96 bg-gray-300 dark:bg-gray-700 rounded-3xl animate-pulse shadow-2xl"></div>
-              <div className="text-center space-y-4 w-full max-w-2xl">
-                <div className="h-12 bg-gray-300 dark:bg-gray-600 rounded-xl w-3/4 mx-auto animate-pulse"></div>
-                <div className="h-6 bg-gray-200 dark:bg-gray-700 rounded-lg w-1/2 mx-auto animate-pulse"></div>
-                <div className="flex justify-center gap-4">
-                  <div className="w-16 h-16 bg-gray-300 dark:bg-gray-600 rounded-full animate-pulse"></div>
-                  <div className="w-16 h-16 bg-gray-300 dark:bg-gray-600 rounded-full animate-pulse"></div>
-                  <div className="w-16 h-16 bg-gray-300 dark:bg-gray-600 rounded-full animate-pulse"></div>
-                </div>
+  const LoadingSkeleton = () => (
+    <div className="min-h-screen bg-gradient-to-br from-gray-50 via-white to-gray-100 dark:from-gray-900 dark:via-gray-800 dark:to-black text-gray-900 dark:text-white relative overflow-hidden">
+      <div className="fixed inset-0 bg-gradient-to-br from-purple-500/5 via-pink-500/3 to-blue-500/5 dark:from-purple-900/20 dark:via-pink-900/10 dark:to-blue-900/20 pointer-events-none"></div>
+      <div className="relative pt-16 md:pt-20 pb-8">
+        <div className="max-w-7xl mx-auto px-4 md:px-6">
+          <div className="flex flex-col items-center gap-8">
+            <div className="w-80 h-80 md:w-96 md:h-96 bg-gray-300 dark:bg-gray-700 rounded-3xl animate-pulse shadow-2xl"></div>
+            <div className="text-center space-y-4 w-full max-w-2xl">
+              <div className="h-12 bg-gray-300 dark:bg-gray-600 rounded-xl w-3/4 mx-auto animate-pulse"></div>
+              <div className="h-6 bg-gray-200 dark:bg-gray-700 rounded-lg w-1/2 mx-auto animate-pulse"></div>
+              <div className="flex justify-center gap-4">
+                <div className="w-16 h-16 bg-gray-300 dark:bg-gray-600 rounded-full animate-pulse"></div>
+                <div className="w-16 h-16 bg-gray-300 dark:bg-gray-600 rounded-full animate-pulse"></div>
+                <div className="w-16 h-16 bg-gray-300 dark:bg-gray-600 rounded-full animate-pulse"></div>
               </div>
             </div>
           </div>
         </div>
       </div>
-    );
-  };
+    </div>
+  );
 
-  // Show loading state
-  if (songLoading) {
-    return (
-      <>
-        <LoadingSkeleton />
-      </>
-    );
-  }
+  if (songLoading) return <LoadingSkeleton />;
 
-  // Enhanced Error State
   if (!song.id) {
     return (
-      <>
-        <div className="min-h-screen bg-gradient-to-br from-gray-50 via-white to-gray-100 dark:from-gray-900 dark:via-gray-800 dark:to-black text-gray-900 dark:text-white flex items-center justify-center px-4">
-          <div className="text-center bg-white/90 dark:bg-gray-900/90 backdrop-blur-xl rounded-3xl border border-gray-200/60 dark:border-gray-700/60 p-8 shadow-2xl max-w-md mx-auto">
-            <div className="w-16 h-16 bg-red-100 dark:bg-red-900/30 rounded-full flex items-center justify-center mx-auto mb-4">
-              <Headphones className="w-8 h-8 text-red-600 dark:text-red-400" />
-            </div>
-            <p className="text-lg md:text-xl text-red-600 dark:text-red-400 mb-4 font-semibold">
-              Song not found
-            </p>
-            <p className="text-gray-600 dark:text-gray-400 mb-6">
-              The song you&apos;re looking for doesn&apos;t exist or has been
-              removed.
-            </p>
-            <button
-              onClick={() => router.back()}
-              className="px-6 py-3 bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white rounded-xl transition-all duration-300 hover:scale-105 font-medium shadow-lg"
-            >
-              Go Back
-            </button>
+      <div className="min-h-screen bg-gradient-to-br from-gray-50 via-white to-gray-100 dark:from-gray-900 dark:via-gray-800 dark:to-black text-gray-900 dark:text-white flex items-center justify-center px-4">
+        <div className="text-center bg-white/90 dark:bg-gray-900/90 backdrop-blur-xl rounded-3xl border border-gray-200/60 dark:border-gray-700/60 p-8 shadow-2xl max-w-md mx-auto">
+          <div className="w-16 h-16 bg-red-100 dark:bg-red-900/30 rounded-full flex items-center justify-center mx-auto mb-4">
+            <Headphones className="w-8 h-8 text-red-600 dark:text-red-400" />
           </div>
+          <p className="text-lg md:text-xl text-red-600 dark:text-red-400 mb-4 font-semibold">
+            Song not found
+          </p>
+          <p className="text-gray-600 dark:text-gray-400 mb-6">
+            The song you&apos;re looking for doesn&apos;t exist or has been removed.
+          </p>
+          <button
+            onClick={() => router.back()}
+            className="px-6 py-3 bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white rounded-xl transition-all duration-300 hover:scale-105 font-medium shadow-lg"
+          >
+            Go Back
+          </button>
         </div>
-      </>
+      </div>
     );
   }
 
   return (
     <>
       <div className="min-h-screen bg-gradient-to-br from-gray-50 via-white to-gray-100 dark:from-gray-900 dark:via-gray-800 dark:to-black text-gray-900 dark:text-white relative overflow-hidden">
-        {/* Enhanced Background Effects */}
         <div className="fixed inset-0 bg-gradient-to-br from-purple-500/5 via-pink-500/3 to-blue-500/5 dark:from-purple-900/20 dark:via-pink-900/10 dark:to-blue-900/20 pointer-events-none"></div>
 
-        {/* Enhanced Mobile Navigation Header */}
+        {/* Mobile Navigation Header */}
         <div className="md:hidden fixed top-0 left-0 right-0 z-50 bg-white/90 dark:bg-black/90 backdrop-blur-xl border-b border-gray-200/50 dark:border-white/10">
           <div className="flex items-center gap-4 p-4">
             <button
@@ -362,9 +320,7 @@ const SongDetailPage = () => {
                     {decodeHTMLString(song.name || song.title)}
                   </h1>
                   <p className="text-xs text-gray-500 dark:text-gray-400">
-                    {song.artists?.primary
-                      ?.map((artist) => artist.name)
-                      .join(", ")}
+                    {song.artists?.primary?.map((artist) => artist.name).join(", ")}
                   </p>
                 </div>
               </>
@@ -384,7 +340,7 @@ const SongDetailPage = () => {
           </div>
         </div>
 
-        {/* Enhanced Desktop Sticky Header */}
+        {/* Desktop Sticky Header */}
         <div
           ref={headerRef}
           className={`hidden md:block fixed top-0 left-0 right-0 z-50 transition-all duration-500 ${
@@ -416,14 +372,11 @@ const SongDetailPage = () => {
                     {decodeHTMLString(song.name || song.title)}
                   </h1>
                   <p className="text-sm text-gray-500 dark:text-gray-400">
-                    {song.artists?.primary
-                      ?.map((artist) => artist.name)
-                      .join(", ")}
+                    {song.artists?.primary?.map((artist) => artist.name).join(", ")}
                   </p>
                 </div>
               </>
             )}
-
             <div className="ml-auto flex items-center gap-3">
               <button
                 onClick={handlePlayPause}
@@ -439,15 +392,14 @@ const SongDetailPage = () => {
           </div>
         </div>
 
-        {/* Enhanced Hero Section */}
+        {/* Hero Section */}
         <div className="relative pt-16 md:pt-20 pb-8 md:pb-12">
           <div className="max-w-7xl mx-auto px-4 md:px-6">
             <div className="flex flex-col items-center gap-8 md:gap-12">
-              {/* Enhanced Song Cover Art */}
+              {/* Cover Art */}
               <div className="relative group">
                 <div className="relative w-80 h-80 md:w-96 md:h-96 rounded-3xl overflow-hidden shadow-2xl shadow-gray-500/20 dark:shadow-black/50">
                   <div className="absolute -inset-6 bg-gradient-to-r from-purple-500/20 via-pink-500/20 to-blue-500/20 dark:from-purple-500/30 dark:via-pink-500/30 dark:to-blue-500/30 rounded-3xl blur-2xl opacity-75 group-hover:opacity-100 transition-opacity duration-500"></div>
-
                   <div className="relative w-full h-full">
                     <Image
                       src={song.image?.[2]?.url || "/placeholder-song.jpg"}
@@ -456,7 +408,6 @@ const SongDetailPage = () => {
                       height={384}
                       className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105"
                     />
-
                     <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-all duration-300 flex items-center justify-center">
                       <button
                         onClick={handlePlayPause}
@@ -469,25 +420,15 @@ const SongDetailPage = () => {
                         )}
                       </button>
                     </div>
-
-                    {/* Enhanced Playing Animation */}
                     {isPlaying && isCurrentSong && (
                       <div className="absolute top-4 right-4">
                         <div className="flex items-center gap-2 bg-black/60 dark:bg-black/50 backdrop-blur-md px-4 py-2 rounded-full">
                           <div className="flex gap-0.5">
                             <div className="w-1 h-3 bg-purple-400 rounded-full animate-pulse"></div>
-                            <div
-                              className="w-1 h-4 bg-purple-400 rounded-full animate-pulse"
-                              style={{ animationDelay: "0.2s" }}
-                            ></div>
-                            <div
-                              className="w-1 h-2 bg-purple-400 rounded-full animate-pulse"
-                              style={{ animationDelay: "0.4s" }}
-                            ></div>
+                            <div className="w-1 h-4 bg-purple-400 rounded-full animate-pulse" style={{ animationDelay: "0.2s" }}></div>
+                            <div className="w-1 h-2 bg-purple-400 rounded-full animate-pulse" style={{ animationDelay: "0.4s" }}></div>
                           </div>
-                          <span className="text-xs text-white font-medium">
-                            Now Playing
-                          </span>
+                          <span className="text-xs text-white font-medium">Now Playing</span>
                         </div>
                       </div>
                     )}
@@ -495,14 +436,12 @@ const SongDetailPage = () => {
                 </div>
               </div>
 
-              {/* Enhanced Song Info */}
+              {/* Song Info */}
               <div className="text-center space-y-6 max-w-4xl">
                 <div>
                   <h1 className="text-3xl md:text-4xl lg:text-5xl font-black mb-4 bg-gradient-to-r from-gray-900 via-purple-800 to-pink-800 dark:from-white dark:via-purple-200 dark:to-pink-200 bg-clip-text text-transparent leading-tight">
                     {decodeHTMLString(song.name || song.title)}
                   </h1>
-
-                  {/* Enhanced Artists Section */}
                   <div className="flex flex-wrap items-center justify-center gap-3 text-lg md:text-xl text-gray-600 dark:text-gray-300 mb-6">
                     <span>by</span>
                     {song.artists?.primary?.map((artist, index) => (
@@ -514,10 +453,7 @@ const SongDetailPage = () => {
                           {artist.image && (
                             <div className="w-7 h-7 rounded-full overflow-hidden ring-2 ring-purple-500/30 group-hover:ring-purple-500/60 transition-all duration-200 shadow-md">
                               <Image
-                                src={
-                                  artist.image[0]?.url ||
-                                  "/placeholder-artist.jpg"
-                                }
+                                src={artist.image[0]?.url || "/placeholder-artist.jpg"}
                                 alt={artist.name}
                                 width={28}
                                 height={28}
@@ -530,15 +466,11 @@ const SongDetailPage = () => {
                           </span>
                         </Link>
                         {index < song.artists.primary.length - 1 && (
-                          <span className="text-gray-400 dark:text-gray-500 mx-1">
-                            ,
-                          </span>
+                          <span className="text-gray-400 dark:text-gray-500 mx-1">,</span>
                         )}
                       </React.Fragment>
                     ))}
                   </div>
-
-                  {/* Quick Stats */}
                   <div className="flex flex-wrap items-center justify-center gap-6 text-sm text-gray-500 dark:text-gray-400 mb-8">
                     {song.duration && (
                       <div className="flex items-center gap-2">
@@ -561,7 +493,7 @@ const SongDetailPage = () => {
                   </div>
                 </div>
 
-                {/* Enhanced Action Buttons */}
+                {/* Action Buttons */}
                 <div className="flex flex-wrap items-center justify-center gap-4 pt-4">
                   <button
                     onClick={handlePlayPause}
@@ -605,22 +537,14 @@ const SongDetailPage = () => {
                           : "bg-gray-100 dark:bg-white/10 hover:bg-red-50 dark:hover:bg-red-900/20"
                       }`}
                     >
-                      <Heart
-                        className={`w-5 h-5 ${
-                          likedSongs
-                            ? "fill-current"
-                            : "group-hover:text-red-500"
-                        }`}
-                      />
+                      <Heart className={`w-5 h-5 ${likedSongs ? "fill-current" : "group-hover:text-red-500"}`} />
                     </button>
-
                     <button
                       onClick={handleShare}
                       className="p-3 rounded-full bg-gray-100 dark:bg-white/10 hover:bg-gray-200 dark:hover:bg-white/20 transition-colors duration-300"
                     >
                       <Share2 className="w-5 h-5" />
                     </button>
-
                     {getDownloadState(song.id) ? (
                       <DownloadProgress
                         progress={getDownloadState(song.id).progress}
@@ -653,7 +577,6 @@ const SongDetailPage = () => {
                         <Download className="w-5 h-5" />
                       </button>
                     )}
-
                     <button className="p-3 rounded-full bg-gray-100 dark:bg-white/10 hover:bg-gray-200 dark:hover:bg-white/20 transition-colors duration-300">
                       <MoreHorizontal className="w-5 h-5" />
                     </button>
@@ -664,9 +587,10 @@ const SongDetailPage = () => {
           </div>
         </div>
 
-        {/* Enhanced Content Sections */}
+        {/* Content Sections */}
         <div className="max-w-7xl mx-auto px-4 md:px-6 pb-32 space-y-8">
-          {/* Enhanced Song Info Section */}
+
+          {/* ── Song Info ── */}
           <div className="bg-white/80 dark:bg-white/5 backdrop-blur-xl rounded-3xl p-6 md:p-8 border border-gray-200/50 dark:border-white/10 shadow-xl dark:shadow-none">
             <h2 className="text-2xl font-bold mb-6 flex items-center gap-3 text-gray-900 dark:text-white">
               <div className="w-8 h-8 bg-gradient-to-r from-purple-600 to-pink-600 rounded-lg flex items-center justify-center">
@@ -674,102 +598,73 @@ const SongDetailPage = () => {
               </div>
               Song Information
             </h2>
-
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               {song.album && (
                 <div className="flex items-center gap-4 p-4 rounded-xl bg-gray-50 dark:bg-white/5 hover:bg-gray-100 dark:hover:bg-white/10 transition-colors duration-200">
-                  <span className="text-gray-500 dark:text-gray-400 w-20 font-medium">
-                    Album:
-                  </span>
-                  <span className="text-gray-900 dark:text-white font-semibold">
-                    <Link
-                      href={`/album/${song.album.name}/${song.album.id}/false/0`}
-                      className="hover:text-purple-600 dark:hover:text-purple-400 transition-colors"
-                    >
-                      {song.album.name}
-                    </Link>
-                  </span>
+                  <span className="text-gray-500 dark:text-gray-400 w-20 font-medium">Album:</span>
+                  <Link
+                    href={`/album/${song.album.name}/${song.album.id}/false/0`}
+                    className="text-gray-900 dark:text-white font-semibold hover:text-purple-600 dark:hover:text-purple-400 transition-colors"
+                  >
+                    {song.album.name}
+                  </Link>
                 </div>
               )}
-
               {song.language && (
                 <div className="flex items-center gap-4 p-4 rounded-xl bg-gray-50 dark:bg-white/5">
-                  <span className="text-gray-500 dark:text-gray-400 w-20 font-medium">
-                    Language:
-                  </span>
-                  <span className="text-gray-900 dark:text-white font-semibold capitalize">
-                    {song.language}
-                  </span>
+                  <span className="text-gray-500 dark:text-gray-400 w-20 font-medium">Language:</span>
+                  <span className="text-gray-900 dark:text-white font-semibold capitalize">{song.language}</span>
                 </div>
               )}
-
               {song.playCount && (
                 <div className="flex items-center gap-4 p-4 rounded-xl bg-gray-50 dark:bg-white/5">
-                  <span className="text-gray-500 dark:text-gray-400 w-20 font-medium">
-                    Plays:
-                  </span>
-                  <span className="text-gray-900 dark:text-white font-semibold">
-                    {formatNumber(song.playCount)}
-                  </span>
+                  <span className="text-gray-500 dark:text-gray-400 w-20 font-medium">Plays:</span>
+                  <span className="text-gray-900 dark:text-white font-semibold">{formatNumber(song.playCount)}</span>
                 </div>
               )}
-
               {song.year && (
                 <div className="flex items-center gap-4 p-4 rounded-xl bg-gray-50 dark:bg-white/5">
-                  <span className="text-gray-500 dark:text-gray-400 w-20 font-medium">
-                    Year:
-                  </span>
-                  <span className="text-gray-900 dark:text-white font-semibold">
-                    {song.year}
-                  </span>
+                  <span className="text-gray-500 dark:text-gray-400 w-20 font-medium">Year:</span>
+                  <span className="text-gray-900 dark:text-white font-semibold">{song.year}</span>
                 </div>
               )}
-
               {song.duration && (
                 <div className="flex items-center gap-4 p-4 rounded-xl bg-gray-50 dark:bg-white/5">
-                  <span className="text-gray-500 dark:text-gray-400 w-20 font-medium">
-                    Duration:
-                  </span>
-                  <span className="text-gray-900 dark:text-white font-semibold">
-                    {formatDuration(song.duration)}
-                  </span>
+                  <span className="text-gray-500 dark:text-gray-400 w-20 font-medium">Duration:</span>
+                  <span className="text-gray-900 dark:text-white font-semibold">{formatDuration(song.duration)}</span>
                 </div>
               )}
-
               {song.bitrate && (
                 <div className="flex items-center gap-4 p-4 rounded-xl bg-gray-50 dark:bg-white/5">
-                  <span className="text-gray-500 dark:text-gray-400 w-20 font-medium">
-                    Quality:
-                  </span>
-                  <span className="text-gray-900 dark:text-white font-semibold">
-                    {song.bitrate} kbps
-                  </span>
+                  <span className="text-gray-500 dark:text-gray-400 w-20 font-medium">Quality:</span>
+                  <span className="text-gray-900 dark:text-white font-semibold">{song.bitrate} kbps</span>
                 </div>
               )}
-
               {song.label && (
                 <div className="flex items-center gap-4 p-4 rounded-xl bg-gray-50 dark:bg-white/5">
-                  <span className="text-gray-500 dark:text-gray-400 w-20 font-medium">
-                    Label:
-                  </span>
-                  <span className="text-gray-900 dark:text-white font-semibold">
-                    {song.label}
-                  </span>
+                  <span className="text-gray-500 dark:text-gray-400 w-20 font-medium">Label:</span>
+                  <span className="text-gray-900 dark:text-white font-semibold">{song.label}</span>
                 </div>
               )}
             </div>
           </div>
 
-          {/* Additional sections can be added here */}
-                <PlaylistModal
-                  isOpen={playlistModalOpen}
-                  onClose={() => {
-                    setPlaylistModalOpen(false);
-                    setSelectedSong(null);
-                  }}
-                  songId={selectedSong?.id}
-                  songName={selectedSong?.name}
-                />
+          {/* ── Lyrics ── */}
+          <SongLyrics
+            artistName={primaryArtistName}
+            songName={decodeHTMLString(song.name || song.title)}
+            decodeHTMLString={decodeHTMLString}
+          />
+
+          <PlaylistModal
+            isOpen={playlistModalOpen}
+            onClose={() => {
+              setPlaylistModalOpen(false);
+              setSelectedSong(null);
+            }}
+            songId={selectedSong?.id}
+            songName={selectedSong?.name}
+          />
         </div>
       </div>
     </>
