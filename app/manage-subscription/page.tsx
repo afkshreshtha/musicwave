@@ -1,7 +1,7 @@
 "use client";
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { supabase } from '@/lib/supabase';
+import { createClient } from '@/lib/supabase';
 import { getUserSubscription } from '@/lib/supabasefunctions';
 import { SUBSCRIPTION_PLANS } from '@/lib/subscriptionPlans';
 import {
@@ -24,6 +24,9 @@ export default function ManageSubscription() {
   const [subscription, setSubscription] = useState(null);
   const [loading, setLoading] = useState(true);
   const [processing, setProcessing] = useState(false);
+  const supabase = createClient();
+
+
 
   useEffect(() => {
     fetchData();

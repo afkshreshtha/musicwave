@@ -1,7 +1,7 @@
 "use client";
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { supabase } from "@/lib/supabase";
+import { createClient } from "@/lib/supabase";
 import {
   initializeUserStats,
   trackPlaylistCreation,
@@ -27,6 +27,7 @@ export default function ProfilePage() {
   const [user, setUser] = useState(null);
   const [activeTab, setActiveTab] = useState("overview");
   const [loading, setLoading] = useState(true);
+  const supabase = createClient();
 
   const [profileData, setProfileData] = useState({
     displayName: "",

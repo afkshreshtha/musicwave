@@ -1,7 +1,7 @@
 "use client";
 import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
-import { supabase } from "@/lib/supabase";
+import { createClient } from "@/lib/supabase";
 import {
   User,
   Camera,
@@ -23,6 +23,7 @@ import Image from "next/image";
 export default function SettingsPage() {
   const router = useRouter();
   const fileInputRef = useRef(null);
+  const supabase = createClient();
 
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);

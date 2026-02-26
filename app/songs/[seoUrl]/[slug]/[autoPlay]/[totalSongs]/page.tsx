@@ -59,7 +59,7 @@ import {
 } from "@/lib/supabasefunctions";
 import PlaylistModal from "@/components/PlaylistModal";
 import { handleLikePlaylist } from "@/lib/supabasefunctions";
-import { supabase } from "@/lib/supabase";
+import { createClient } from "@/lib/supabase";
 interface Song {
   id: string;
   name: string;
@@ -161,7 +161,9 @@ const PlaylistDetailsPage = () => {
     updatePlaylistProgress,
     playlistDownload,
     clearDownloadState,
+
   } = useDownloadProgress();
+  const supabase = createClient();
 
   useEffect(() => {
     if (playlistDownload.isDownloading && !showProgressDialog) {

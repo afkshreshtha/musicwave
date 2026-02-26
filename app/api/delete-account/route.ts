@@ -3,7 +3,7 @@ import { createClient } from '@supabase/supabase-js';
 import { NextResponse } from 'next/server';
 
 // Create admin client with service_role key - THIS IS THE KEY FIX
-const supabaseAdmin = createClient(
+const supabaseAdmin =  createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL,
   process.env.SUPABASE_SERVICE_ROLE_KEY,
   {

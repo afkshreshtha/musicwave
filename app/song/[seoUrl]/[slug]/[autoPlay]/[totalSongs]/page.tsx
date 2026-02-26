@@ -30,7 +30,7 @@ import {
   getUserSubscription,
   toggleSongLike,
 } from "@/lib/supabasefunctions";
-import { supabase } from "@/lib/supabase";
+import { createClient } from "@/lib/supabase";
 import { downloadMP4WithMetadata } from "@/utils/download";
 import { useDownloadProgress } from "@/hooks/useDownloadProgress";
 import DownloadProgress from "@/components/DownloadProgress";
@@ -41,7 +41,7 @@ import SongLyrics from "@/components/SongsLyrics"; // 👈 NEW
 const SongDetailPage = () => {
   const { slug, autoPlay } = useParams();
   const router = useRouter();
-
+const supabase = createClient();
   const [scrolled, setScrolled] = useState(false);
   const [isInPlaylist, setIsInPlaylist] = useState(false);
   const [playlistModalOpen, setPlaylistModalOpen] = useState(false);
