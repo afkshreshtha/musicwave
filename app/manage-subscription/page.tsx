@@ -42,6 +42,7 @@ export default function ManageSubscription() {
 
       setUser(user);
       const userSubscription = await getUserSubscription();
+      console.log(userSubscription)
       setSubscription(userSubscription);
     } catch (error) {
       console.error('Error fetching data:', error);
