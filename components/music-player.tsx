@@ -105,11 +105,6 @@ const MusicPlayer = ({ audioRef }) => {
     completeDownload,
     cancelDownload,
     getDownloadState,
-    completePlaylistDownload,
-    startPlaylistDownload,
-    cancelPlaylistDownload,
-    updatePlaylistProgress,
-    playlistDownload,
     clearDownloadState,
   } = useDownloadProgress();
   // Time formatting
@@ -388,6 +383,8 @@ const MusicPlayer = ({ audioRef }) => {
                   className="font-medium text-gray-900 dark:text-white truncate text-sm cursor-pointer hover:underline"
                   onClick={handleSongNameClick}
                 >
+                 
+                 
                   {currentSong.name}
                 </h4>
                 <p className="text-xs text-gray-500 dark:text-gray-400 truncate">

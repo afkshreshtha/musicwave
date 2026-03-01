@@ -37,6 +37,7 @@ import DownloadProgress from "@/components/DownloadProgress";
 import LikedSongs from "@/components/likedSongs";
 import PlaylistModal from "@/components/PlaylistModal";
 import SongLyrics from "@/components/SongsLyrics"; // 👈 NEW
+import { globalAudioRef } from "@/lib/audioRef";
 
 const SongDetailPage = () => {
   const { slug, autoPlay } = useParams();
@@ -654,6 +655,7 @@ const supabase = createClient();
             artistName={primaryArtistName}
             songName={decodeHTMLString(song.name || song.title)}
             decodeHTMLString={decodeHTMLString}
+       
           />
 
           <PlaylistModal

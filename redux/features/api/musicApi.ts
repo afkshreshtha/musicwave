@@ -353,7 +353,7 @@ export const musicApi = createApi({
     }),
 
   getLyrics: builder.query({
-  queryFn: async ({ artist, song, timestamps = false }) => {
+  queryFn: async ({ artist, song, timestamps = true }) => {
     if (!artist || !song) {
       return { error: { status: "FETCH_ERROR", error: "Artist and song are required" } };
     }

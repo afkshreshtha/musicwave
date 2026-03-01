@@ -32,7 +32,14 @@ const NowPlayingModal = () => {
       {/* Song Info - Responsive */}
       <div className="text-center space-y-1 xs:space-y-2 px-2">
         <h1 className="text-xl xs:text-2xl sm:text-3xl font-bold text-gray-900 dark:text-white leading-tight">
-          {currentSong.name}
+                       <Link 
+                  href={`/song/${currentSong.name}/${currentSong.id}/false/0`}
+                  className="hover:text-blue-500 dark:hover:text-blue-400 transition-colors duration-200 cursor-pointer"
+                >
+                   {currentSong.name}
+                </Link>
+       
+        
         </h1>
         
         {/* Clickable Artist Names */}
