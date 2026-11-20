@@ -4,7 +4,7 @@ A modern, responsive music streaming web application built with [Next.js](https:
 
 🔗 **Live Demo:** https://musicwavee.vercel.app/
 
-![MusicWave Preview](./public/preview.png) *(Replace with a screenshot of your player/dashboard)*
+![MusicWave Preview](./public/image.png)
 
 ---
 
